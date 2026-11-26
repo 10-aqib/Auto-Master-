@@ -63,6 +63,8 @@ ignore = []
 "src/webforge_api/services/ai.py" = ["E501"]
 "src/webforge_api/services/briefs.py" = ["E501"]
 "src/webforge_api/services/renders.py" = ["E501"]
+"src/webforge_api/services/validation.py" = ["E501"]
+"src/webforge_api/design/validation_rules.py" = ["E501"]
 "src/webforge_api/api/v1/designs.py" = ["E501"]
 "src/webforge_api/design/*.py" = ["E501"]
 

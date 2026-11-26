@@ -8,7 +8,14 @@ from webforge_api.models.compliance import (
     PolicyConfig,
     Suppression,
 )
-from webforge_api.models.designs import Asset, DesignBrief, DesignPage, DesignProject, DesignRender
+from webforge_api.models.designs import (
+    Asset,
+    DesignBrief,
+    DesignPage,
+    DesignProject,
+    DesignRender,
+    DesignValidation,
+)
 from webforge_api.models.identity import ActivityLog, MfaRecoveryCode, User, UserSession
 from webforge_api.models.ops import ApiUsage, Job, SystemControl
 from webforge_api.models.outreach import EmailEvent, OutreachMessage, Reply
@@ -36,6 +43,7 @@ __all__ = [
     "DesignPage",
     "DesignProject",
     "DesignRender",
+    "DesignValidation",
     "DomainVerification",
     "EmailContact",
     "EmailEvent",

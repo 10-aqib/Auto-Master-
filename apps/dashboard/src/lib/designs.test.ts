@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CONCEPT_CSP, KIND_LABEL, PAGE_SLUGS, formatCost } from "./designs";
+import { CONCEPT_CSP, KIND_LABEL, PAGE_SLUGS, formatCost, problems, type Validation } from "./designs";
 
 describe("designs helpers", () => {
   it("formats thousandths of a cent as dollars", () => {
@@ -28,5 +28,34 @@ describe("concept preview security headers", () => {
   });
   it("lists the six page slugs in order", () => {
     expect(PAGE_SLUGS).toEqual(["home", "services", "about", "trust", "inquiry", "contact"]);
+  });
+});
+
+describe("validation problems", () => {
+  it("lists failed and unknown checks, critical first", () => {
+    const check = (
+      code: string,
+      status: "pass" | "fail" | "unknown",
+      severity: "critical" | "major" | "minor",
+    ) => ({
+      code,
+      status,
+      severity,
+      message: code,
+      page: null,
+      viewport: null,
+      evidence: null,
+    });
+    const v = {
+      report: {
+        checks: [
+          check("a", "fail", "minor"),
+          check("b", "pass", "critical"),
+          check("c", "fail", "critical"),
+          check("d", "unknown", "major"),
+        ],
+      },
+    } as unknown as Validation;
+    expect(problems(v).map((c) => c.code)).toEqual(["c", "d", "a"]);
   });
 });

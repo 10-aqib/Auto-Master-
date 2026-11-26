@@ -21,7 +21,14 @@ from webforge_api.api.deps import (
     StorageDep,
 )
 from webforge_api.api.v1.discovery import JobOut
-from webforge_api.models import DesignBrief, DesignProject, DesignRender, Prospect, WebsiteAudit
+from webforge_api.models import (
+    DesignBrief,
+    DesignProject,
+    DesignRender,
+    DesignValidation,
+    Prospect,
+    WebsiteAudit,
+)
 from webforge_api.models.enums import ProspectState, RunStatus
 from webforge_api.services.briefs import BRIEF, PROMPT_VERSION, review_brief
 from webforge_api.services.errors import ConflictError, NotFoundError
@@ -29,11 +36,13 @@ from webforge_api.services.jobs import enqueue
 from webforge_api.services.prospect_state import LOCKED
 from webforge_api.services.renders import (
     RENDER,
+    VALIDATE,
     activate_render,
     latest_approved_brief,
     page_html,
     review_render,
 )
+from webforge_api.services.validation import screenshot
 
 router = APIRouter(tags=["designs"])
 BRIEF_READY_STATES = {
@@ -96,10 +105,25 @@ class RenderOut(BaseModel):
     created_at: datetime
 
 
+class ValidationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    render_id: uuid.UUID
+    status: str
+    validator_version: str
+    browser_version: str | None
+    site_sha256: str
+    report: dict[str, Any]
+    screenshots: list[dict[str, Any]]
+    created_at: datetime
+
+
 class DesignDetail(BaseModel):
     project: DesignProjectOut
     briefs: list[BriefOut]
     renders: list[RenderOut]
+    validations: list[ValidationOut]
 
 
 class ReviewIn(BaseModel):
@@ -158,15 +182,23 @@ def get_design(design_id: uuid.UUID, _p: AnyStaff, db: DbDep) -> DesignDetail:
         .where(DesignBrief.design_project_id == design_id)
         .order_by(DesignBrief.version.desc())
     )
-    renders = db.scalars(
+    render_rows = db.scalars(
         select(DesignRender)
         .where(DesignRender.design_project_id == design_id)
         .order_by(DesignRender.version.desc())
-    )
+    ).all()
     return DesignDetail(
         project=DesignProjectOut.model_validate(project),
         briefs=[BriefOut.model_validate(b) for b in briefs],
-        renders=[RenderOut.model_validate(r) for r in renders],
+        renders=[RenderOut.model_validate(r) for r in render_rows],
+        validations=[
+            ValidationOut.model_validate(v)
+            for v in db.scalars(
+                select(DesignValidation)
+                .where(DesignValidation.render_id.in_([r.id for r in render_rows]))
+                .order_by(DesignValidation.created_at.desc())
+            )
+        ],
     )
 
 
@@ -250,4 +282,33 @@ def activate_render_endpoint(
 ) -> RenderOut:
     return RenderOut.model_validate(
         activate_render(db, crypto, render_id=render_id, actor_user_id=principal.user.id, meta=meta)
+    )
+
+
+@router.post("/designs/renders/{render_id}/validate", response_model=JobOut)
+def revalidate(
+    render_id: uuid.UUID, principal: OwnerOrAdmin, db: DbDep, now: NowDep, meta: MetaDep
+) -> JobOut:
+    render = db.get(DesignRender, render_id)
+    if render is None:
+        raise NotFoundError("not_found", "Render not found.")
+    if render.status not in ("RENDERED", "APPROVED"):
+        raise ConflictError("not_validatable", f"Render is {render.status}.")
+    job, _ = enqueue(db, VALIDATE, idempotency_key=f"validate:{render_id}:{now.isoformat()}",
+                     payload={"render_id": str(render_id)}, now=now, entity_type="design_render", entity_id=render_id,
+                     correlation_id=meta.request_id, created_by_user_id=principal.user.id)  # fmt: skip
+    db.commit()
+    return JobOut.model_validate(job)
+
+
+@router.get("/designs/validations/{validation_id}/screenshots/{slug}/{viewport}")
+def validation_screenshot(validation_id: uuid.UUID, slug: PageSlug, viewport: Literal["desktop", "tablet", "mobile"],
+                          _p: AnyStaff, db: DbDep, storage: StorageDep) -> Response:  # fmt: skip
+    data = screenshot(db, storage, validation_id, slug, viewport)
+    if data is None:
+        raise NotFoundError("not_found", "Screenshot not found.")
+    return Response(
+        data,
+        media_type="image/png",
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
     )

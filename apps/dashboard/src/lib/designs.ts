@@ -70,10 +70,54 @@ export interface Brief {
   created_at: string;
 }
 
+export interface ValidationCheck {
+  code: string;
+  status: "pass" | "fail" | "unknown";
+  severity: "critical" | "major" | "minor";
+  message: string;
+  page: string | null;
+  viewport: string | null;
+  evidence: unknown;
+}
+
+export interface Validation {
+  id: string;
+  render_id: string;
+  status: "READY" | "NEEDS_REVISION";
+  validator_version: string;
+  browser_version: string | null;
+  site_sha256: string;
+  report: {
+    status: string;
+    summary: {
+      checks: number;
+      passed: number;
+      failed_critical: number;
+      failed_major: number;
+      failed_minor: number;
+      unknown: number;
+    };
+    repairable: string[];
+    checks: ValidationCheck[];
+  };
+  screenshots: { slug: string; viewport: string; key: string; sha256: string; bytes: number }[];
+  created_at: string;
+}
+
 export interface DesignDetail {
   project: DesignProject;
   briefs: Brief[];
   renders: Render[];
+  validations: Validation[];
+}
+
+const SEVERITY_ORDER = { critical: 0, major: 1, minor: 2 } as const;
+
+/** Failed and unknown checks, most severe first. */
+export function problems(v: Validation): ValidationCheck[] {
+  return v.report.checks
+    .filter((c) => c.status !== "pass")
+    .sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
 }
 
 export const KIND_LABEL: Record<ContentKind, string> = {
@@ -88,6 +132,7 @@ export function formatCost(milliminor: number): string {
 }
 
 export const PAGE_SLUGS = ["home", "services", "about", "trust", "inquiry", "contact"] as const;
+export const VIEWPORTS = ["desktop", "tablet", "mobile"] as const;
 
 /**
  * Same policy as next.config.ts. The sandbox keeps the dashboard origin only so in-frame links carry the
@@ -121,6 +166,8 @@ export interface Render {
   is_active: boolean;
   variant: string;
   manifest: {
+    safe_mode?: boolean;
+    repair_of?: string | null;
     pages: RenderPage[];
     assets: { id: string; key: string; license: string; sha256: string }[];
     brief_version: number;

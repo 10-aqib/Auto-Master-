@@ -31,6 +31,7 @@ from webforge_api.services.places import PlacesService
 from webforge_api.services.prospect_state import LOCKED, transition
 from webforge_api.services.qualification import qualify
 from webforge_api.services.renders import RenderDeps, render_project
+from webforge_api.services.validation import ValidationDeps, validate_render
 from webforge_api.storage import Storage
 
 
@@ -295,11 +296,26 @@ def handle_render(ctx: JobContext, job: Job) -> dict[str, Any]:
         RenderDeps(ctx.db, ctx.settings, ctx.crypto, ctx.storage, ctx.now),
         uuid.UUID(job.payload["design_project_id"]),
         uuid.UUID(actor) if actor else None,
+        correlation_id=job.correlation_id,
     )
     return {"render_id": str(row.id), "version": row.version, "status": row.status}
 
 
+def handle_validate(ctx: JobContext, job: Job) -> dict[str, Any]:
+    if controls.is_paused(ctx.db, ctx.settings):
+        raise JobDeferred("system paused")
+    if ctx.storage is None or ctx.browser is None:
+        raise JobError("misconfigured", "Validation worker has no storage or browser client.")
+    row = validate_render(
+        ValidationDeps(ctx.db, ctx.settings, ctx.crypto, ctx.storage, ctx.browser, ctx.now),
+        uuid.UUID(job.payload["render_id"]),
+        job.correlation_id,
+    )
+    return {"validation_id": str(row.id), "status": row.status, **row.report["summary"]}
+
+
 HANDLERS = {
+    "design.validate": handle_validate,
     "design.render": handle_render,
     "design.brief": handle_brief,
     "prospect.audit": handle_audit,

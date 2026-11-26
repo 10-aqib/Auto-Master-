@@ -21,6 +21,7 @@ from webforge_api.models import (
     DesignPage,
     DesignProject,
     DesignRender,
+    DesignValidation,
     Prospect,
 )
 from webforge_api.models.enums import RunStatus
@@ -28,11 +29,13 @@ from webforge_api.security.crypto import Crypto
 from webforge_api.services import activity
 from webforge_api.services.context import RequestMeta
 from webforge_api.services.errors import ConflictError, NotFoundError
-from webforge_api.services.jobs import JobError, JobSpec
+from webforge_api.services.jobs import JobError, JobSpec, enqueue
 from webforge_api.services.prospect_state import LOCKED
 from webforge_api.storage import Storage
 
 RENDER = JobSpec("design.render", "design", max_attempts=2)
+# Offline browser validation runs on the audit worker (the only service that can reach the sandbox).
+VALIDATE = JobSpec("design.validate", "audit", max_attempts=3)
 
 
 @dataclass
@@ -54,7 +57,13 @@ def latest_approved_brief(db: Session, project_id: uuid.UUID) -> DesignBrief | N
 
 
 def render_project(
-    deps: RenderDeps, project_id: uuid.UUID, actor_user_id: uuid.UUID | None = None
+    deps: RenderDeps,
+    project_id: uuid.UUID,
+    actor_user_id: uuid.UUID | None = None,
+    *,
+    safe_mode: bool = False,
+    repair_of: uuid.UUID | None = None,
+    correlation_id: str | None = None,
 ) -> DesignRender:
     db, now = deps.db, deps.now
     project = db.get(DesignProject, project_id, with_for_update=True)
@@ -73,7 +82,7 @@ def render_project(
         for i in check_brief(brief, {str(f["id"]): str(f["value"]) for f in facts})
     ]
     site = render_site(brief, facts, industry=prospect.industry,
-                       author_name=deps.settings.concept_author_name, author_url=deps.settings.concept_author_url)  # fmt: skip
+                       author_name=deps.settings.concept_author_name, author_url=deps.settings.concept_author_url, safe_mode=safe_mode)  # fmt: skip
     issues += site.issues
     version = (
         db.scalar(
@@ -122,7 +131,8 @@ def render_project(
         design_project_id=project.id, brief_id=brief_row.id, version=version, renderer_version=RENDERER_VERSION,
         status="FAILED" if issues else "RENDERED", variant=site.variant, scan_issues=issues, created_at=now,
         manifest={"pages": pages, "assets": assets, "brief_version": brief_row.version, "site_sha256": digest,
-                  "fonts": "system font stacks only (no downloads)"},
+                  "fonts": "system font stacks only (no downloads)", "safe_mode": safe_mode,
+                  "repair_of": str(repair_of) if repair_of else None},
     )  # fmt: skip
     db.add(row)
     project.renderer_version = RENDERER_VERSION
@@ -135,9 +145,21 @@ def render_project(
     db.flush()
     activity.record(db, deps.crypto, action="design.rendered", actor_user_id=actor_user_id, system=actor_user_id is None,
                     entity_type="design_render", entity_id=row.id,
-                    metadata={"version": version, "status": row.status, "issues": len(issues)})  # fmt: skip
+                    metadata={"version": version, "status": row.status, "issues": len(issues), "safe_mode": safe_mode})  # fmt: skip
+    if row.status == "RENDERED":
+        enqueue(db, VALIDATE, idempotency_key=f"validate:{row.id}", payload={"render_id": str(row.id)}, now=now,
+                entity_type="design_render", entity_id=row.id, correlation_id=correlation_id)  # fmt: skip
     db.commit()
     return row
+
+
+def latest_validation(db: Session, render_id: uuid.UUID) -> DesignValidation | None:
+    return db.scalar(
+        select(DesignValidation)
+        .where(DesignValidation.render_id == render_id)
+        .order_by(DesignValidation.created_at.desc())
+        .limit(1)
+    )
 
 
 def _get(db: Session, render_id: uuid.UUID) -> DesignRender:
@@ -161,6 +183,12 @@ def review_render(db: Session, crypto: Crypto, *, render_id: uuid.UUID, approve:
         raise ConflictError(
             "not_reviewable", f"Render is {row.status}; only new renders can be reviewed."
         )
+    if approve:
+        latest = latest_validation(db, row.id)
+        if latest is None or latest.status != "READY":
+            raise ConflictError(
+                "not_validated", "Only renders whose latest validation is READY can be approved."
+            )
     row.status = "APPROVED" if approve else "REJECTED"
     row.review_notes, row.reviewed_by_user_id, row.reviewed_at = notes[:2000], actor_user_id, now
     if approve:

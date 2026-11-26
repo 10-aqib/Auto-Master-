@@ -377,9 +377,33 @@ try {
     const sw = await phone.evaluate(() => document.documentElement.scrollWidth);
     if (sw > 390) throw new Error(`horizontal overflow at 390px: ${sw}`);
     await phone.close();
+  });
+
+  await check("offline validation passes at three widths with 18 screenshots, then the owner approves", async () => {
+    const deadline = Date.now() + 180_000;
+    for (;;) {
+      await page.reload();
+      if (await page.getByText("ready", { exact: true }).count()) break;
+      if (await page.getByText("needs revision", { exact: true }).count()) {
+        await shot(page, "16-validation-failed");
+        throw new Error("validation needs revision");
+      }
+      if (Date.now() > deadline) throw new Error("validation did not finish");
+      await page.waitForTimeout(3000);
+    }
+    const summary = await page.getByText(/checks passed/).first().innerText();
+    if (!/0 critical/.test(summary)) throw new Error(`summary: ${summary}`);
+    await page.getByText("Screenshots (18)").click();
+    const img = page.getByRole("img", { name: "inquiry page at mobile width" });
+    await img.waitFor();
+    await img.scrollIntoViewIfNeeded();
+    await img.evaluate((el) => (el.complete ? null : new Promise((r) => el.addEventListener("load", r, { once: true }))));
+    const natural = await img.evaluate((el) => el.naturalWidth);
+    if (natural !== 780) throw new Error(`mobile screenshot should be 390px at 2x, got ${natural}`);
+    await shot(page, "16-validation-ready");
     await page.getByRole("button", { name: "Approve concept" }).click();
     await page.getByText("active", { exact: true }).waitFor();
-    await shot(page, "16-concept-approved");
+    await shot(page, "17-concept-approved");
   });
 
   await check("no browser console errors", async () => {

@@ -9,6 +9,7 @@ import pytest
 from sqlalchemy import select
 
 from tests.conftest import Harness
+from tests.fake_validator import run_validation
 from tests.test_audits import _resume
 from tests.test_briefs import CTX, _ready_prospect, _rt, mock_brief
 from tests.test_sources_api import _owner
@@ -195,6 +196,7 @@ def test_render_store_preview_review_and_rollback(harness: Harness) -> None:
         harness.client.get(f"/api/v1/designs/renders/{first['id']}/pages/admin").status_code == 422
     )
 
+    run_validation(harness)
     r = harness.client.post(
         f"/api/v1/designs/renders/{first['id']}/review",
         json={"approve": True, "notes": "good"},
@@ -207,9 +209,11 @@ def test_render_store_preview_review_and_rollback(harness: Harness) -> None:
         second["version"] == 2
         and second["manifest"]["site_sha256"] == first["manifest"]["site_sha256"]
     )
-    harness.client.post(
+    run_validation(harness)
+    approved = harness.client.post(
         f"/api/v1/designs/renders/{second['id']}/review", json={"approve": True}, headers=csrf
     )
+    assert approved.status_code == 200, approved.text
     renders = {
         r["version"]: r
         for r in harness.client.get(f"/api/v1/designs/{design_id}").json()["renders"]

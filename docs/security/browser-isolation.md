@@ -33,3 +33,9 @@ flowchart LR
 
 Known limits: the API process still performs the single-page official-website verification (Phase 02) with the
 application-level SSRF fetcher; moving it into the sandbox is planned for Phase 11 hardening.
+
+## Concept validation (Phase 07)
+
+`POST /validate` never browses: the six pages arrive in the request body and are served to a fresh Chromium from
+memory at `https://concept.invalid/`. All other requests are aborted and reported, DNS resolution is disabled and
+the proxy setting points at a closed port. The same isolation self-test gates validation jobs.

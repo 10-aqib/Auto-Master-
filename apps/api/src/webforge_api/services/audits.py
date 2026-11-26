@@ -82,6 +82,23 @@ class BrowserClient:
         data: dict[str, Any] = r.json()
         return data
 
+    def validate(self, pages: dict[str, str], slug: str) -> dict[str, Any]:
+        """Offline validation of one concept page at desktop, tablet and mobile widths."""
+        try:
+            r = self._client.post("/validate", json={"pages": pages, "slug": slug}, timeout=180)
+        except httpx.HTTPError as exc:
+            raise JobError(
+                "browser_unavailable", "Browser sandbox request failed.", retryable=True
+            ) from exc
+        if r.status_code >= 400:
+            raise JobError(
+                "browser_error" if r.status_code >= 500 else "browser_rejected",
+                f"Browser sandbox returned {r.status_code} for validation.",
+                retryable=r.status_code in (502, 503, 504),
+            )
+        data: dict[str, Any] = r.json()
+        return data
+
     def close(self) -> None:
         self._client.close()
 

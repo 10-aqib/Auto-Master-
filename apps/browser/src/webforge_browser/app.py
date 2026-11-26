@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from webforge_browser import __version__
 from webforge_browser.auditor import Limits, run_audit
 from webforge_browser.selftest import run_selftest
+from webforge_browser.validator import VIEWPORTS, run_validation
 
 PROXY = os.environ.get("EGRESS_PROXY_URL")  # e.g. http://egress-proxy:3128
 app = FastAPI(
@@ -33,6 +34,18 @@ class AuditRequest(BaseModel):
     page_timeout_s: float = Field(default=30, gt=0, le=60)
     total_timeout_s: float = Field(default=300, gt=0, le=600)
     user_agent: str = Field(default="WEBFORGE-AI-Audit/0.1", max_length=200)
+
+
+class ValidateRequest(BaseModel):
+    """Validate one concept page (all other pages are needed to check navigation). Fully offline."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    pages: dict[str, str] = Field(min_length=1, max_length=12)
+    slug: str = Field(pattern=r"^[a-z]{2,20}$")
+    viewports: list[str] = Field(
+        default_factory=lambda: list(VIEWPORTS), min_length=1, max_length=3
+    )
 
 
 @app.get("/health")
@@ -63,3 +76,20 @@ async def audit(body: AuditRequest) -> dict[str, Any]:
             )
         except TimeoutError as exc:
             raise HTTPException(504, "Audit exceeded its time limit.") from exc
+
+
+@app.post("/validate")
+async def validate(body: ValidateRequest) -> dict[str, Any]:
+    if body.slug not in body.pages or any(v not in VIEWPORTS for v in body.viewports):
+        raise HTTPException(422, "Unknown page or viewport.")
+    if any(len(html) > 300_000 for html in body.pages.values()) or any(
+        not k.isalpha() for k in body.pages
+    ):
+        raise HTTPException(413, "Page too large or invalid page key.")
+    async with _slot:
+        try:
+            return await asyncio.wait_for(
+                run_validation(body.pages, body.slug, body.viewports), 120
+            )
+        except TimeoutError as exc:
+            raise HTTPException(504, "Validation exceeded its time limit.") from exc

@@ -858,12 +858,20 @@
             },
             "title": "Renders",
             "type": "array"
+          },
+          "validations": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationOut"
+            },
+            "title": "Validations",
+            "type": "array"
           }
         },
         "required": [
           "project",
           "briefs",
-          "renders"
+          "renders",
+          "validations"
         ],
         "title": "DesignDetail",
         "type": "object"
@@ -2946,6 +2954,74 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "ValidationOut": {
+        "properties": {
+          "browser_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser Version"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "render_id": {
+            "format": "uuid",
+            "title": "Render Id",
+            "type": "string"
+          },
+          "report": {
+            "additionalProperties": true,
+            "title": "Report",
+            "type": "object"
+          },
+          "screenshots": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Screenshots",
+            "type": "array"
+          },
+          "site_sha256": {
+            "title": "Site Sha256",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "validator_version": {
+            "title": "Validator Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "render_id",
+          "status",
+          "validator_version",
+          "browser_version",
+          "site_sha256",
+          "report",
+          "screenshots",
+          "created_at"
+        ],
+        "title": "ValidationOut",
+        "type": "object"
+      },
       "VerificationOut": {
         "properties": {
           "candidate_origin": {
@@ -4383,6 +4459,121 @@
           }
         },
         "summary": "Review Render Endpoint",
+        "tags": [
+          "designs"
+        ]
+      }
+    },
+    "/api/v1/designs/renders/{render_id}/validate": {
+      "post": {
+        "operationId": "revalidate_api_v1_designs_renders__render_id__validate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "render_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Render Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revalidate",
+        "tags": [
+          "designs"
+        ]
+      }
+    },
+    "/api/v1/designs/validations/{validation_id}/screenshots/{slug}/{viewport}": {
+      "get": {
+        "operationId": "validation_screenshot_api_v1_designs_validations__validation_id__screenshots__slug___viewport__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "validation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Validation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "enum": [
+                "home",
+                "services",
+                "about",
+                "trust",
+                "inquiry",
+                "contact"
+              ],
+              "title": "Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "viewport",
+            "required": true,
+            "schema": {
+              "enum": [
+                "desktop",
+                "tablet",
+                "mobile"
+              ],
+              "title": "Viewport",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validation Screenshot",
         "tags": [
           "designs"
         ]

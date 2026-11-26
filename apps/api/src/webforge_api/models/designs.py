@@ -179,3 +179,26 @@ class DesignRender(UUIDPrimaryKey, Base):
             postgresql_where=text("is_active"),
         ),
     )
+
+
+class DesignValidation(UUIDPrimaryKey, Base):
+    """Offline browser validation of one render: report, evidence and screenshots."""
+
+    __tablename__ = "design_validations"
+
+    render_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("design_renders.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    validator_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    browser_version: Mapped[str | None] = mapped_column(String(64))
+    site_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    report: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    screenshots: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, default=list, server_default="[]", nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("status IN ('READY','NEEDS_REVISION')", name="design_validation_status"),
+    )

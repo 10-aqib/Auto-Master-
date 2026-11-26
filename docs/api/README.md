@@ -61,6 +61,8 @@ in non-production environments only.
 | GET | `/designs/renders/{id}/pages/{slug}` | all roles | Concept page HTML, served with a `sandbox` CSP and integrity-checked |
 | POST | `/designs/renders/{id}/review` | OWNER, ADMIN, REVIEWER | Approve (becomes active) or reject a new render |
 | POST | `/designs/renders/{id}/activate` | OWNER, ADMIN | Re-activate an earlier approved render (rollback) |
+| POST | `/designs/renders/{id}/validate` | OWNER, ADMIN | Re-run offline validation (runs automatically after each render) |
+| GET | `/designs/validations/{id}/screenshots/{slug}/{viewport}` | all roles | Validation screenshot PNG (hash-verified) |
 | GET | `/industries` | all roles | Industry vocabulary |
 | GET | `/health/live`, `/health/ready` | anyone | Liveness / dependency readiness |
 

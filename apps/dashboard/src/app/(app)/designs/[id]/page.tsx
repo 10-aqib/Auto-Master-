@@ -6,7 +6,15 @@ import { ReviewForm } from "@/components/brief-review";
 import { ConceptPreview } from "@/components/concept-preview";
 import { Alert, Card, formatDate } from "@/components/ui";
 import { apiServer, requireActiveSession } from "@/lib/api-server";
-import { KIND_LABEL, formatCost, type Brief, type DesignDetail, type Render } from "@/lib/designs";
+import { ValidationReport } from "@/components/validation-report";
+import {
+  KIND_LABEL,
+  formatCost,
+  type Brief,
+  type DesignDetail,
+  type Render,
+  type Validation,
+} from "@/lib/designs";
 
 export const metadata = { title: "Design brief · WEBFORGE AI" };
 
@@ -105,11 +113,14 @@ function RenderCard({
   render: r,
   canReview,
   canAdmin,
+  validation,
 }: {
   render: Render;
   canReview: boolean;
   canAdmin: boolean;
+  validation: Validation | undefined;
 }) {
+  const ready = validation?.status === "READY";
   return (
     <section
       className="grid gap-3 border-t border-line pt-4 first:border-0 first:pt-0"
@@ -122,6 +133,7 @@ function RenderCard({
         <span className="text-muted">
           {formatDate(r.created_at)} · brief v{r.manifest.brief_version} · {r.renderer_version} · {r.variant}{" "}
           style
+          {r.manifest.safe_mode ? " · safe-mode repair" : ""}
         </span>
       </div>
       {r.scan_issues.length > 0 && (
@@ -144,14 +156,28 @@ function RenderCard({
           fonts: system stacks only
         </p>
       )}
+      {validation ? (
+        <ValidationReport validation={validation} />
+      ) : (
+        r.status !== "FAILED" && (
+          <p className="text-sm text-muted">
+            Validation is queued: every page is checked offline at desktop, tablet and mobile widths.
+          </p>
+        )
+      )}
+      {canAdmin && validation && r.status !== "FAILED" && r.status !== "REJECTED" && (
+        <div>
+          <ActionButton path={`/designs/renders/${r.id}/validate`} label="Re-run validation" />
+        </div>
+      )}
       {r.review_notes && <p className="text-sm text-muted">Review notes: {r.review_notes}</p>}
       {canReview && r.status === "RENDERED" && (
         <ReviewForm
           id={r.id}
           path={`/designs/renders/${r.id}/review`}
           subject="concept"
-          approvable
-          blockedReason=""
+          approvable={ready}
+          blockedReason="Approval needs a READY validation with no critical failures."
         />
       )}
       {canAdmin && r.status === "APPROVED" && !r.is_active && (
@@ -168,7 +194,7 @@ export default async function DesignPage({ params }: PageProps<"/designs/[id]">)
   const { user } = await requireActiveSession();
   const detail = await apiServer<DesignDetail>(`/designs/${id}`);
   if (!detail.ok) return <Alert>{detail.error.message}</Alert>;
-  const { project, briefs, renders } = detail.data;
+  const { project, briefs, renders, validations } = detail.data;
   const canReview = user.role !== "READ_ONLY";
   const canAdmin = user.role === "OWNER" || user.role === "ADMIN";
   const hasApprovedBrief = briefs.some((b) => b.status === "APPROVED");
@@ -203,7 +229,13 @@ export default async function DesignPage({ params }: PageProps<"/designs/[id]">)
         {renders.length ? (
           <div className="grid gap-6">
             {renders.map((r) => (
-              <RenderCard key={r.id} render={r} canReview={canReview} canAdmin={canAdmin} />
+              <RenderCard
+                key={r.id}
+                render={r}
+                canReview={canReview}
+                canAdmin={canAdmin}
+                validation={validations.find((v) => v.render_id === r.id)}
+              />
             ))}
           </div>
         ) : (

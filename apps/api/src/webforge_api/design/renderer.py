@@ -74,8 +74,23 @@ def _on(colour: str, light: str = "#FFFFFF", dark: str = "#111111") -> str:
     return light if contrast_ratio(light, colour) >= contrast_ratio(dark, colour) else dark
 
 
-def build_css(brief: DesignBrief, variant: str) -> Markup:
+SAFE_NEUTRALS = {
+    "background": "#FFFFFF",
+    "surface": "#F3F4F6",
+    "text": "#111111",
+    "muted_text": "#374151",
+}
+
+
+def build_css(brief: DesignBrief, variant: str, safe_mode: bool = False) -> Markup:
     pal = brief.palette.model_dump()
+    if (
+        safe_mode
+    ):  # repair pass: high-contrast neutrals, brand colours kept only where they still pass
+        pal.update(SAFE_NEUTRALS)
+        for key in ("primary", "accent"):
+            if contrast_ratio(pal[key], pal["background"]) < 4.5:
+                pal[key] = "#1F2937" if key == "primary" else "#B45309"
     if not all(
         HEX.match(v) for v in pal.values()
     ):  # defence in depth; the schema already enforces this
@@ -140,6 +155,7 @@ input,textarea{{font:inherit;color:var(--t);background:var(--bg);border:1px soli
 footer.site{{background:var(--t);color:var(--bg);padding:2rem 0;font-size:.875rem}}
 footer.site p{{max-width:none}}
 @media (min-width:48rem){{.block{{padding:3.5rem 0}}.b-hero{{padding:5rem 0}}}}
+{"a:focus,button:focus,input:focus,textarea:focus,summary:focus{outline:3px solid var(--a);outline-offset:3px}" if safe_mode else ""}
 @media (prefers-reduced-motion:reduce){{*{{animation:none!important;transition:none!important;scroll-behavior:auto!important}}}}
 """
     return Markup(re.sub(r"\n\s*", "", css))  # noqa: S704 - built only from validated hex values and fixed stacks
@@ -195,11 +211,12 @@ def render_site(
     industry: str | None,
     author_name: str,
     author_url: str,
+    safe_mode: bool = False,
 ) -> RenderedSite:
     by_field = {f["field"]: str(f["value"]) for f in facts}
     wordmark = by_field.get("business_name") or "Your Business"
     variant = variant_for(industry)
-    css = build_css(brief, variant)
+    css = build_css(brief, variant, safe_mode)
     svg = illustration(brief, wordmark)
     contact = [
         {"label": label, "value": by_field[k]}

@@ -8,12 +8,46 @@
 | 03 | Discovery | Complete | Disabled (rejected by config) |
 | 04 | Website audit | Complete | Disabled (rejected by config) |
 | 05 | AI intelligence | Complete (mock provider; live Claude calls not run) | Disabled (rejected by config) |
-| 06 | Design generation | **Complete** | Disabled (rejected by config) |
-| 07 | Validation | Not started | Disabled |
+| 06 | Design generation | Complete | Disabled (rejected by config) |
+| 07 | Validation | **Complete** | Disabled (rejected by config) |
 | 08 | Proposals | Not started | Disabled |
 | 09 | Email/compliance | Not started | Sandbox only |
 | 10 | Dashboard/orchestration | Not started | Paused |
 | 11 | Production | Not started | Only approved category |
+
+## Phase 07 — Responsive validation and screenshots (2026-11-26)
+
+### Delivered
+- **Offline validator** in the browser sandbox (`POST /validate`, `apps/browser/.../validator.py`): pages served
+  from memory at `https://concept.invalid/`, all other requests aborted and reported, DNS disabled; desktop
+  1440 / tablet 768 / mobile 390; measures overflow, console errors, blocked requests, images, notice, links,
+  headings, accessible names, labels, alt text, computed-colour contrast, keyboard focus, tokens/fonts, and
+  demo-form behaviour (fill, Enter, click; no navigation or requests allowed). Screenshots at device scale 2,
+  taken before interaction.
+- **Rules `validator-1`** (`design/validation_rules.py`): pass / fail / unknown checks with critical / major /
+  minor severity and evidence; `READY` only with zero critical failures; HTML hash and screenshot hash checks
+  catch version mismatches.
+- **Job `design.validate`** (audit queue, isolation self-test gated), queued automatically after each render;
+  18 screenshots + report stored per run in `design_validations` (migration `0006`); desktop shots linked to
+  `design_pages`; prospect → `VALIDATING`, or `HUMAN_REVIEW` when revision is needed.
+- **Bounded repair**: contrast/focus failures trigger one safe-mode deterministic re-render per brief version.
+- **Approval gate**: a concept can be approved only if its latest validation is `READY`.
+- **API/UI**: re-run validation, screenshot endpoint; validation panel with summary, failing checks + evidence,
+  18 screenshot thumbnails (hash shown), approve disabled until ready. Docs: ADR 0008, API docs, isolation doc.
+
+### Verification evidence (local run, 2026-11-26)
+
+| Check | Result |
+|---|---|
+| API tests (real PostgreSQL + Redis) | PASS — 439 passed (18 new: ready path with 18 screenshots, approval gate, 10 critical fixtures incl. overflow / console error / external font / broken image / broken route / submitting form / missing notice / HTML version mismatch / screenshot hash mismatch / load failure, warnings not blocking, repair once, repair bounded, isolation gate, tampered page) |
+| Browser sandbox tests | PASS — 19 passed (7 new against real Chromium: clean page at 2x, inert form, submitting form detected, CSP blocks implicit submit, overflow/contrast/headings/names/alt/blocked fetch/console error fixtures, missing notice) |
+| Real renderer × real Chromium, all four industry variants | PASS — 293/293 checks each; low-contrast palette: 15 contrast failures, safe-mode repair: 0 |
+| Migration 0006 round trip | PASS |
+| Lint / strict types (API 128 files, sandbox, dashboard) | PASS |
+| Dashboard unit tests / build | PASS — 48 passed / build OK |
+| Docker stack 8 services / smoke / isolation | PASS — healthy, 15/15, 8/8 |
+| Browser E2E (incl. live validation READY 293/293, 18 screenshots, 2x mobile image, approve) | PASS — 26/26 |
+| Error log lines | 0 |
 
 ## Phase 06 — Six-screen concept renderer (2026-11-26)
 
