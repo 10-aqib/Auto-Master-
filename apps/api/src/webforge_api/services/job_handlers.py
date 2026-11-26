@@ -28,6 +28,7 @@ from webforge_api.services.context import RequestMeta
 from webforge_api.services.errors import ServiceError, UnavailableError
 from webforge_api.services.jobs import JobCancelled, JobError, enqueue
 from webforge_api.services.places import PlacesService
+from webforge_api.services.proposals import ProposalDeps, generate_proposal
 from webforge_api.services.prospect_state import LOCKED, transition
 from webforge_api.services.qualification import qualify
 from webforge_api.services.renders import RenderDeps, render_project
@@ -314,7 +315,22 @@ def handle_validate(ctx: JobContext, job: Job) -> dict[str, Any]:
     return {"validation_id": str(row.id), "status": row.status, **row.report["summary"]}
 
 
+def handle_proposal(ctx: JobContext, job: Job) -> dict[str, Any]:
+    if controls.is_paused(ctx.db, ctx.settings):
+        raise JobDeferred("system paused")
+    if ctx.storage is None or ctx.browser is None:
+        raise JobError("misconfigured", "Proposal worker has no storage or browser client.")
+    actor = job.payload.get("requested_by")
+    row = generate_proposal(
+        ProposalDeps(ctx.db, ctx.settings, ctx.crypto, ctx.storage, ctx.browser, ctx.now),
+        uuid.UUID(job.payload["design_project_id"]),
+        uuid.UUID(actor) if actor else None,
+    )
+    return {"proposal_id": str(row.id), "version": row.proposal_version, "status": row.status.value}
+
+
 HANDLERS = {
+    "proposal.generate": handle_proposal,
     "design.validate": handle_validate,
     "design.render": handle_render,
     "design.brief": handle_brief,

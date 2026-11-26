@@ -9,11 +9,46 @@
 | 04 | Website audit | Complete | Disabled (rejected by config) |
 | 05 | AI intelligence | Complete (mock provider; live Claude calls not run) | Disabled (rejected by config) |
 | 06 | Design generation | Complete | Disabled (rejected by config) |
-| 07 | Validation | **Complete** | Disabled (rejected by config) |
-| 08 | Proposals | Not started | Disabled |
+| 07 | Validation | Complete | Disabled (rejected by config) |
+| 08 | Proposals | **Complete** (no email) | Disabled (rejected by config) |
 | 09 | Email/compliance | Not started | Sandbox only |
 | 10 | Dashboard/orchestration | Not started | Paused |
 | 11 | Production | Not started | Only approved category |
+
+## Phase 08 — Proposal PDF and secure preview (2026-11-26)
+
+### Delivered
+- **Proposal PDF (`proposal-1`)**: cover with independent-concept/non-endorsement notice, dated audit
+  observations, design direction, six page previews (desktop + mobile), information architecture, cautious
+  opportunities ("not guaranteed"), developer introduction (Muhammad Aqib, Website Developer, aqibkhn.space,
+  github.com/10-aqib) and a next step that shows `PROPOSAL_CONTACT_EMAIL` only when supplied. Built only from the
+  active APPROVED concept with a READY validation; screenshots hash-checked against the render version.
+- **Offline PDF rendering** in the browser sandbox (`POST /pdf`, JS off, network blocked) and **pypdf checks**
+  (opens, ≥ 10 pages, no blank pages, ≥ 12 images, business/notice/developer present, no internal IDs, no
+  debug/placeholder text). Pass → `READY` + prospect `PROPOSAL_READY`; fail → `DRAFT` + `HUMAN_REVIEW`.
+- **Preview gateway** (`webforge_api.preview`, container `preview`, `PREVIEW_BASE_URL`, port 4000): 256-bit tokens,
+  only keyed hash stored, link shown once; 30-day default expiry; immediate revoke; uniform 404; per-IP rate
+  limit; strict sandbox CSP and security headers; no cookies/docs/API; hash-verified pages; access counting.
+  Production config requires an https preview origin separate from app/API.
+- **Lifecycle**: download, regenerate (new version), create/revoke previews, delete (PDF removed, previews
+  revoked, metadata kept), `cli purge-artifacts` retention (migration `0007`).
+- **UI**: "Proposal and preview" card on the design page. Docs: ADR 0009, API docs, `.env.example`.
+- Nothing is emailed.
+
+### Verification evidence (local run, 2026-11-26)
+
+| Check | Result |
+|---|---|
+| API tests (real PostgreSQL + Redis) | PASS — 451 passed (12 new: generation and checks, failed checks hold, approved concept required, screenshot version mismatch, preview lifecycle on separate origin incl. headers / uniform 404 / 405 / access count / revocation, expiry, delete + retention purge, rate limit, token uniqueness and roles, escaping and contact-email rule, production origin rules) |
+| Browser sandbox tests | PASS — 22 passed (3 new: real Chromium PDF with page count and blocked remote image, endpoint validation) |
+| Real stack PDF | PASS — 11 pages, 1.5 MB, text extraction confirms notice, developer identity, no invented contact |
+| Migration 0007 round trip | PASS |
+| Lint / strict types (API 134 files, sandbox, dashboard) / dashboard tests and build | PASS — 48 tests |
+| Docker stack 9 services / smoke / isolation | PASS — healthy, 19/19, 8/8 |
+| Browser E2E (proposal READY, PDF download, preview opened from a fresh context on the preview origin, headers, demo form, PDF via token, wrong token 404, revoke → 404) | PASS — 27/27 |
+| Error log lines | 0 |
+
+Not run: preview on a real public subdomain with TLS (needs the owner's domain and VPS; Phase 11 Caddy config).
 
 ## Phase 07 — Responsive validation and screenshots (2026-11-26)
 

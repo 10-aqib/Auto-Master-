@@ -178,3 +178,33 @@ export interface Render {
   reviewed_at: string | null;
   created_at: string;
 }
+
+export interface Preview {
+  id: string;
+  proposal_id: string;
+  status: "ACTIVE" | "EXPIRED" | "REVOKED";
+  created_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  access_count: number;
+  last_accessed_at: string | null;
+}
+
+export interface Proposal {
+  id: string;
+  prospect_id: string;
+  design_project_id: string;
+  render_id: string | null;
+  proposal_version: number;
+  template_version: string | null;
+  status: "DRAFT" | "READY" | "SENT" | "EXPIRED" | "REVOKED";
+  generated_at: string | null;
+  expires_at: string | null;
+  deleted_at: string | null;
+  pdf_sha256: string | null;
+  pdf_bytes: number | null;
+  page_count: number | null;
+  summary: string | null;
+  checks: { code: string; ok: boolean; detail: string }[];
+  previews: Preview[];
+}

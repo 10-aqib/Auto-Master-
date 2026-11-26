@@ -1652,6 +1652,261 @@
         "title": "PlaceOut",
         "type": "object"
       },
+      "PreviewCreated": {
+        "properties": {
+          "note": {
+            "default": "Copy this link now. Only a hash of its token is stored, so it cannot be shown again.",
+            "title": "Note",
+            "type": "string"
+          },
+          "preview": {
+            "$ref": "#/components/schemas/PreviewOut"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preview",
+          "url"
+        ],
+        "title": "PreviewCreated",
+        "type": "object"
+      },
+      "PreviewOut": {
+        "properties": {
+          "access_count": {
+            "title": "Access Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_accessed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Accessed At"
+          },
+          "proposal_id": {
+            "format": "uuid",
+            "title": "Proposal Id",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "proposal_id",
+          "status",
+          "created_at",
+          "expires_at",
+          "revoked_at",
+          "access_count",
+          "last_accessed_at"
+        ],
+        "title": "PreviewOut",
+        "type": "object"
+      },
+      "ProposalOut": {
+        "properties": {
+          "checks": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "design_project_id": {
+            "format": "uuid",
+            "title": "Design Project Id",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "generated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generated At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "page_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Count"
+          },
+          "pdf_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pdf Bytes"
+          },
+          "pdf_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pdf Sha256"
+          },
+          "previews": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PreviewOut"
+            },
+            "title": "Previews",
+            "type": "array"
+          },
+          "proposal_version": {
+            "title": "Proposal Version",
+            "type": "integer"
+          },
+          "prospect_id": {
+            "format": "uuid",
+            "title": "Prospect Id",
+            "type": "string"
+          },
+          "render_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Render Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "template_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Version"
+          }
+        },
+        "required": [
+          "id",
+          "prospect_id",
+          "design_project_id",
+          "render_id",
+          "proposal_version",
+          "template_version",
+          "status",
+          "generated_at",
+          "expires_at",
+          "deleted_at",
+          "pdf_sha256",
+          "pdf_bytes",
+          "page_count",
+          "summary",
+          "checks"
+        ],
+        "title": "ProposalOut",
+        "type": "object"
+      },
       "ProspectDetail": {
         "properties": {
           "campaigns": {
@@ -4622,6 +4877,49 @@
         ]
       }
     },
+    "/api/v1/designs/{design_id}/proposal": {
+      "post": {
+        "operationId": "start_proposal_api_v1_designs__design_id__proposal_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "design_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Design Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Proposal",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
     "/api/v1/designs/{design_id}/render": {
       "post": {
         "operationId": "start_render_api_v1_designs__design_id__render_post",
@@ -4995,6 +5293,247 @@
         "summary": "Places Search",
         "tags": [
           "sources"
+        ]
+      }
+    },
+    "/api/v1/previews/{preview_id}/revoke": {
+      "post": {
+        "operationId": "revoke_api_v1_previews__preview_id__revoke_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "preview_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Preview Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
+    "/api/v1/proposals": {
+      "get": {
+        "operationId": "list_proposals_api_v1_proposals_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "design_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Design Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "prospect_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Prospect Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProposalOut"
+                  },
+                  "title": "Response List Proposals Api V1 Proposals Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Proposals",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
+    "/api/v1/proposals/{proposal_id}/delete": {
+      "post": {
+        "operationId": "delete_api_v1_proposals__proposal_id__delete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
+    "/api/v1/proposals/{proposal_id}/pdf": {
+      "get": {
+        "operationId": "proposal_pdf_api_v1_proposals__proposal_id__pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Proposal Pdf",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
+    "/api/v1/proposals/{proposal_id}/previews": {
+      "post": {
+        "operationId": "new_preview_api_v1_proposals__proposal_id__previews_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "New Preview",
+        "tags": [
+          "proposals"
         ]
       }
     },

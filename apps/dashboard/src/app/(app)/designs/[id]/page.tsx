@@ -6,12 +6,14 @@ import { ReviewForm } from "@/components/brief-review";
 import { ConceptPreview } from "@/components/concept-preview";
 import { Alert, Card, formatDate } from "@/components/ui";
 import { apiServer, requireActiveSession } from "@/lib/api-server";
+import { ProposalsCard } from "@/components/proposals-card";
 import { ValidationReport } from "@/components/validation-report";
 import {
   KIND_LABEL,
   formatCost,
   type Brief,
   type DesignDetail,
+  type Proposal,
   type Render,
   type Validation,
 } from "@/lib/designs";
@@ -192,7 +194,10 @@ function RenderCard({
 export default async function DesignPage({ params }: PageProps<"/designs/[id]">) {
   const { id } = await params;
   const { user } = await requireActiveSession();
-  const detail = await apiServer<DesignDetail>(`/designs/${id}`);
+  const [detail, proposals] = await Promise.all([
+    apiServer<DesignDetail>(`/designs/${id}`),
+    apiServer<Proposal[]>(`/proposals?design_id=${id}`),
+  ]);
   if (!detail.ok) return <Alert>{detail.error.message}</Alert>;
   const { project, briefs, renders, validations } = detail.data;
   const canReview = user.role !== "READ_ONLY";
@@ -213,6 +218,13 @@ export default async function DesignPage({ params }: PageProps<"/designs/[id]">)
           cites a verified source; everything else is labelled as proposed copy or an assumption.
         </p>
       </header>
+
+      <ProposalsCard
+        designId={project.id}
+        proposals={proposals.ok ? proposals.data : []}
+        canAdmin={canAdmin}
+        hasActiveConcept={renders.some((r) => r.is_active && r.status === "APPROVED")}
+      />
 
       <Card
         title="Six-screen concepts"

@@ -4,6 +4,7 @@ set -euo pipefail
 
 API=${SMOKE_API_URL:-http://127.0.0.1:8000}
 DASH=${SMOKE_DASHBOARD_URL:-http://127.0.0.1:3000}
+PREVIEW=${SMOKE_PREVIEW_URL:-http://127.0.0.1:4000}
 fail=0
 
 check() {
@@ -32,6 +33,10 @@ check "users API requires auth"      status_is "$API/api/v1/users" 401
 check "dashboard redirects to login" bash -c "[ \"\$(curl -s -o /dev/null -w '%{redirect_url}' --max-time 5 '$DASH/users')\" = '$DASH/login?next=%2Fusers' ]"
 check "login page renders"           body_has "$DASH/login" "Sign in"
 check "API path traversal blocked"   status_is "$DASH/api/v1/..%2F..%2Fhealth%2Flive" 404
+check "preview /health/live"          body_has "$PREVIEW/health/live" '"status":"ok"'
+check "preview unknown token is 404"  status_is "$PREVIEW/p/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/home" 404
+check "preview has no API routes"     status_is "$PREVIEW/api/v1/auth/me" 404
+check "preview sends sandbox CSP"     header_has "$PREVIEW/p/x/home" content-security-policy
 check "worker healthy"               bash -c '[ "$(docker inspect -f "{{.State.Health.Status}}" "$(docker compose ps -q worker)")" = healthy ]'
 check "postgres port not published"  not_published postgres 5432
 check "redis port not published"     not_published redis 6379

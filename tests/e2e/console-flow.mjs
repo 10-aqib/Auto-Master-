@@ -406,6 +406,49 @@ try {
     await shot(page, "17-concept-approved");
   });
 
+  await check("owner generates a proposal PDF and opens a token preview from a separate origin", async () => {
+    await page.getByRole("button", { name: "Generate proposal" }).click();
+    const deadline = Date.now() + 180_000;
+    for (;;) {
+      await page.reload();
+      if (await page.getByRole("link", { name: "Download PDF" }).count()) break;
+      if (await page.getByText(/Checks failed:/).count()) throw new Error("proposal checks failed");
+      if (Date.now() > deadline) throw new Error("proposal did not finish");
+      await page.waitForTimeout(3000);
+    }
+    const pdfHref = await page.getByRole("link", { name: "Download PDF" }).getAttribute("href");
+    const pdf = await page.request.get(`${BASE}${pdfHref}`);
+    const bytes = await pdf.body();
+    if (!pdf.ok() || bytes.subarray(0, 5).toString() !== "%PDF-") throw new Error("PDF download failed");
+    const pages = Math.max(0, ...[...bytes.toString("latin1").matchAll(/\/Count (\d+)/g)].map((m) => Number(m[1])));
+    if (pages < 10) throw new Error(`PDF has ${pages} pages`);
+    await page.getByRole("button", { name: "Create preview link" }).click();
+    const url = (await page.getByTestId("preview-url").innerText()).trim();
+    if (!/^http:\/\/localhost:4000\/p\/[A-Za-z0-9_-]{43,}\/$/.test(url)) throw new Error(`preview url: ${url}`);
+    await shot(page, "18-proposal");
+    // A recipient: fresh browser context, no dashboard cookies, different origin.
+    const visitor = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const v = await visitor.newPage();
+    const res = await v.goto(url);
+    if (!v.url().endsWith("/home") || res?.status() !== 200) throw new Error(`preview open: ${v.url()} ${res?.status()}`);
+    const headers = res.headers();
+    if (!headers["content-security-policy"]?.startsWith("sandbox;") || headers["x-frame-options"] !== "DENY")
+      throw new Error("preview security headers missing");
+    await v.getByText("Independent redesign concept — not the official website").first().waitFor();
+    await v.getByRole("link", { name: "Make an Inquiry" }).first().click();
+    await v.getByText("Demo only. This form does not send, save or collect anything.").waitFor();
+    await shot(v, "19-preview-mobile");
+    const pdfRes = await v.request.get(`${url}proposal.pdf`);
+    if (pdfRes.status() !== 200 || pdfRes.headers()["content-type"] !== "application/pdf") throw new Error("preview pdf");
+    if ((await v.request.get(url.replace(/\/p\/[^/]+\//, "/p/" + "A".repeat(43) + "/") + "home")).status() !== 404)
+      throw new Error("wrong token not refused");
+    // Immediate revocation.
+    await page.getByRole("button", { name: "Revoke" }).click();
+    await page.getByText("preview revoked").waitFor();
+    if ((await v.request.get(`${url}home`)).status() !== 404) throw new Error("revoked preview still served");
+    await visitor.close();
+  });
+
   await check("no browser console errors", async () => {
     const real = errors.filter((e) => !/401|403|409|Failed to load resource/.test(e));
     if (real.length) throw new Error(real.join(" | "));

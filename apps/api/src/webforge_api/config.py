@@ -100,7 +100,10 @@ class Settings(BaseSettings):
     app_name: str = "WEBFORGE_AI"
     app_url: str = "http://localhost:3000"
     api_url: str = "http://localhost:8000"
-    preview_base_url: str = "http://localhost:4000"
+    # Separate origin that serves token-protected previews (never the dashboard or API origin).
+    preview_base_url: Annotated[str, Field(pattern=r"^https?://[A-Za-z0-9.-]+(:[0-9]{2,5})?$")] = (
+        "http://localhost:4000"
+    )
     timezone: str = "Asia/Karachi"
     log_level: LogLevel = LogLevel.INFO
     cors_allowed_origins: str = "http://localhost:3000"
@@ -154,6 +157,17 @@ class Settings(BaseSettings):
     concept_author_url: Annotated[
         str, Field(max_length=200, pattern=r"^$|^https://[A-Za-z0-9.-]+(/[A-Za-z0-9._~/-]*)?$")
     ] = "https://aqibkhn.space"
+    concept_author_title: Annotated[str, Field(min_length=1, max_length=80)] = "Website Developer"
+    concept_author_github: Annotated[
+        str, Field(max_length=200, pattern=r"^$|^https://github\.com/[A-Za-z0-9-]+$")
+    ] = "https://github.com/10-aqib"
+
+    # Proposals and previews (Phase 08).
+    # Optional reply address shown in the proposal's "next step"; never invented when empty.
+    proposal_contact_email: Annotated[
+        str, Field(max_length=254, pattern=r"^$|^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
+    ] = ""
+    preview_rate_limit_per_minute: Annotated[int, Field(ge=10, le=10_000)] = 120
 
     # Google Places
     google_maps_api_key: SecretStr = SecretStr("")
@@ -367,6 +381,14 @@ class Settings(BaseSettings):
             problems.append("LOG_LEVEL=DEBUG is not allowed in production")
         if not self.app_url.startswith("https://") or not self.api_url.startswith("https://"):
             problems.append("APP_URL and API_URL must use https:// in production")
+        if not self.preview_base_url.startswith("https://"):
+            problems.append("PREVIEW_BASE_URL must use https:// in production")
+        preview_host = self.preview_base_url.split("://", 1)[1].split(":", 1)[0]
+        if any(
+            preview_host == u.split("://", 1)[-1].split("/", 1)[0].split(":", 1)[0]
+            for u in (self.app_url, self.api_url)
+        ):
+            problems.append("PREVIEW_BASE_URL must be a separate origin from APP_URL and API_URL")
         return problems
 
 

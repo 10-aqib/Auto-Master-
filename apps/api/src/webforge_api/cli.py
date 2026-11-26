@@ -106,6 +106,9 @@ def main(argv: list[str] | None = None) -> int:
     refresh.add_argument("--older-than-days", type=int, default=365)
     refresh.add_argument("--limit", type=int, default=100)
     sub.add_parser("purge-transient", help="purge expired/disallowed transient values")
+    sub.add_parser(
+        "purge-artifacts", help="expire preview links and delete proposal PDFs past retention"
+    )
     args = parser.parse_args(argv)
 
     if args.command == "openapi":
@@ -138,6 +141,14 @@ def main(argv: list[str] | None = None) -> int:
                 store = TransientStore(db, Crypto.from_settings(settings), utcnow())
                 expired, disallowed = store.purge_expired(), store.purge_disallowed()
                 print(f"Purged {expired} expired and {disallowed} disallowed transient values.")
+            elif args.command == "purge-artifacts":
+                from webforge_api.services.proposals import purge_expired as purge_artifacts
+                from webforge_api.storage import build_storage
+
+                counts = purge_artifacts(
+                    db, Crypto.from_settings(settings), build_storage(settings), now=utcnow()
+                )
+                print(f"Artifacts: {counts}")
             elif args.command == "purge-expired":
                 count = purge_expired_sessions(db, now=utcnow(), keep_days=args.keep_days)
                 print(f"Purged {count} sessions.")

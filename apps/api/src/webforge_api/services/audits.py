@@ -99,6 +99,28 @@ class BrowserClient:
         data: dict[str, Any] = r.json()
         return data
 
+    def pdf(self, html: str, footer_notice: str) -> bytes:
+        """Render a self-contained proposal document to PDF, offline."""
+        try:
+            r = self._client.post(
+                "/pdf", json={"html": html, "footer_notice": footer_notice}, timeout=240
+            )
+        except httpx.HTTPError as exc:
+            raise JobError(
+                "browser_unavailable", "Browser sandbox request failed.", retryable=True
+            ) from exc
+        if r.status_code >= 400 or not r.content.startswith(b"%PDF-"):
+            raise JobError(
+                "pdf_failed",
+                f"Browser sandbox could not render the PDF ({r.status_code}).",
+                retryable=r.status_code in (502, 503, 504),
+            )
+        if r.headers.get("x-blocked-requests", "0") != "0":
+            raise JobError(
+                "pdf_external_requests", "The proposal document tried to load external resources."
+            )
+        return r.content
+
     def close(self) -> None:
         self._client.close()
 

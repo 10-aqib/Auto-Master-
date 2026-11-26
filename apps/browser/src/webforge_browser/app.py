@@ -6,11 +6,12 @@ import asyncio
 import os
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from webforge_browser import __version__
 from webforge_browser.auditor import Limits, run_audit
+from webforge_browser.pdf import render_pdf
 from webforge_browser.selftest import run_selftest
 from webforge_browser.validator import VIEWPORTS, run_validation
 
@@ -46,6 +47,15 @@ class ValidateRequest(BaseModel):
     viewports: list[str] = Field(
         default_factory=lambda: list(VIEWPORTS), min_length=1, max_length=3
     )
+
+
+class PdfRequest(BaseModel):
+    """Render a self-contained proposal document to PDF. Fully offline."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    html: str = Field(min_length=20, max_length=60_000_000)
+    footer_notice: str = Field(min_length=1, max_length=200)
 
 
 @app.get("/health")
@@ -93,3 +103,17 @@ async def validate(body: ValidateRequest) -> dict[str, Any]:
             )
         except TimeoutError as exc:
             raise HTTPException(504, "Validation exceeded its time limit.") from exc
+
+
+@app.post("/pdf")
+async def pdf(body: PdfRequest) -> Response:
+    async with _slot:
+        try:
+            data, blocked = await asyncio.wait_for(render_pdf(body.html, body.footer_notice), 180)
+        except TimeoutError as exc:
+            raise HTTPException(504, "PDF rendering exceeded its time limit.") from exc
+    return Response(
+        data,
+        media_type="application/pdf",
+        headers={"X-Blocked-Requests": str(len(blocked)), "Cache-Control": "no-store"},
+    )

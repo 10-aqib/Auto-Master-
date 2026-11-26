@@ -30,6 +30,7 @@ Image digests are not pinned yet; digest pinning is a Phase 11 production-harden
 | structlog | 26.1.0 |
 | anthropic (Claude API SDK, Phase 05) | 2.14.0 |
 | jinja2 (concept renderer, Phase 06) | 3.1.6 |
+| pypdf (proposal PDF checks, Phase 08) | 6.1.3 |
 | httpx2 (transitive via anthropic; also used by Starlette TestClient) | 2.16.2 |
 | psycopg[binary] | 3.3.9 |
 | redis | 8.2.0 |

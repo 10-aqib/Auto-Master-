@@ -63,6 +63,12 @@ in non-production environments only.
 | POST | `/designs/renders/{id}/activate` | OWNER, ADMIN | Re-activate an earlier approved render (rollback) |
 | POST | `/designs/renders/{id}/validate` | OWNER, ADMIN | Re-run offline validation (runs automatically after each render) |
 | GET | `/designs/validations/{id}/screenshots/{slug}/{viewport}` | all roles | Validation screenshot PNG (hash-verified) |
+| POST | `/designs/{id}/proposal` | OWNER, ADMIN | Queue a proposal PDF for the active, validated concept |
+| GET | `/proposals?design_id=&prospect_id=` | all roles | Proposals with checks and preview links (metadata only) |
+| GET | `/proposals/{id}/pdf` | all roles | Download the PDF (hash-verified) |
+| POST | `/proposals/{id}/previews` | OWNER, ADMIN | Create a preview link; the URL is returned once, only its hash is stored |
+| POST | `/previews/{id}/revoke` | OWNER, ADMIN | Revoke a preview link immediately |
+| POST | `/proposals/{id}/delete` | OWNER, ADMIN | Delete the PDF and revoke all previews (metadata kept) |
 | GET | `/industries` | all roles | Industry vocabulary |
 | GET | `/health/live`, `/health/ready` | anyone | Liveness / dependency readiness |
 
@@ -76,3 +82,8 @@ A signed-in session is in one state; endpoints outside the allowed set return `4
 | `mfa_enrollment_required` | OWNER/ADMIN without MFA | `me`, `mfa/setup`, `mfa/enable`, `logout` |
 | `password_change_required` | Temporary password | `me`, `password`, MFA setup, `logout` |
 | `active` | Fully authenticated | Everything the role allows |
+
+## Preview origin (separate service)
+
+`PREVIEW_BASE_URL` (container `preview`) serves only `GET /p/<token>/<page>` and `GET /p/<token>/proposal.pdf`.
+Everything else, and any unknown, expired or revoked token, returns a plain `404`. See ADR 0009.

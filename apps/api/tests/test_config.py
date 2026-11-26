@@ -16,6 +16,7 @@ def _production_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_ENV", "production")
     monkeypatch.setenv("APP_URL", "https://app.test.invalid")
     monkeypatch.setenv("API_URL", "https://api.test.invalid")
+    monkeypatch.setenv("PREVIEW_BASE_URL", "https://preview.test.invalid")
     monkeypatch.setenv("APP_SECRET_KEY", secrets.token_urlsafe(48))
     monkeypatch.setenv("JWT_SIGNING_KEY", secrets.token_urlsafe(48))
     monkeypatch.setenv("ENCRYPTION_KEY", _key32())

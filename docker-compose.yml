@@ -77,6 +77,29 @@ services:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
 
+  # Token-protected concept previews on their own origin (PREVIEW_BASE_URL). Read-only artifacts; no API routes.
+  preview:
+    <<: *hardening
+    image: webforge/api:dev
+    command: ["uvicorn", "--factory", "webforge_api.preview:create_preview_app", "--host", "0.0.0.0", "--port", "4000", "--no-server-header", "--no-access-log"]
+    env_file: [.env]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    ports:
+      - "127.0.0.1:4000:4000"
+    volumes:
+      - artifacts:/data/artifacts:ro
+    networks: [backend, frontend]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:4000/health/live', timeout=2).status == 200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      api: { condition: service_healthy }
+
   # Website audits: talks to the browser sandbox; stores evidence in the artifacts volume.
   worker-audit:
     <<: *hardening
