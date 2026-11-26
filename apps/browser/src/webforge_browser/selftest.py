@@ -56,7 +56,12 @@ async def run_selftest(proxy: str | None) -> dict[str, Any]:
         for target in PROXY_DENY_TARGETS:
             via_proxy[target] = await _proxy_connect(host, int(port or 3128), target)
     direct_ok = not any(direct.values())
-    proxy_ok = bool(proxy) and proxy_reachable and all(s == 403 for s in via_proxy.values())
+    # Any refusal (403 policy, 502 DNS failure) is fine; only an established tunnel (200) fails.
+    proxy_ok = (
+        bool(proxy)
+        and proxy_reachable
+        and all(s is not None and s != 200 for s in via_proxy.values())
+    )
     return {
         "isolated": direct_ok and proxy_ok,
         "direct_connections_blocked": direct_ok,

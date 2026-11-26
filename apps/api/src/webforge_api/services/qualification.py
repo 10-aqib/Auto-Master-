@@ -177,6 +177,9 @@ def qualify(
         outcome, reasons = QualificationOutcome.REJECTED, ["owner_rejected"]
     elif comps["business_fit"].score == 0:
         outcome, reasons = QualificationOutcome.REJECTED, ["industry_mismatch"]
+    elif not audited and _latest_audit_failed(db, prospect.id):
+        # The site could not be audited (blocked, unreachable, error): a person decides.
+        outcome, reasons = QualificationOutcome.MANUAL_REVIEW, ["audit_failed"]
     elif possible_duplicates(db, prospect):
         outcome, reasons = QualificationOutcome.MANUAL_REVIEW, ["possible_duplicate"]
     elif coverage < MIN_COVERAGE or score is None:
@@ -218,6 +221,16 @@ def qualify(
         if prospect.state is not target and target in _reachable(prospect.state):
             transition(db, crypto, prospect, target, reason=",".join(reasons), now=now)
     return result
+
+
+def _latest_audit_failed(db: Session, prospect_id: uuid.UUID) -> bool:
+    latest = db.scalar(
+        select(WebsiteAudit.status)
+        .where(WebsiteAudit.prospect_id == prospect_id)
+        .order_by(WebsiteAudit.created_at.desc())
+        .limit(1)
+    )
+    return latest is RunStatus.FAILED
 
 
 def _reachable(state: ProspectState) -> set[ProspectState]:

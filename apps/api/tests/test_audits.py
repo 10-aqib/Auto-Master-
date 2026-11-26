@@ -239,6 +239,16 @@ def test_bot_blocked_audit_goes_to_review(harness: Harness) -> None:
             assert audit.status is RunStatus.FAILED and "refused" in (audit.error_summary or "")
             assert db.scalars(select(AuditFinding)).first() is None
             assert db.get(Prospect, p.id).state is ProspectState.HUMAN_REVIEW  # type: ignore[union-attr]
+        drain(rt, ["qualification", "audit"])  # the follow-up re-qualification
+        with harness.db() as db:
+            q = db.scalars(
+                select(QualificationResult).where(QualificationResult.prospect_id == p.id)
+            ).one()
+            assert q.reason_codes == ["audit_failed"] and q.outcome.value == "MANUAL_REVIEW"
+            assert db.get(Prospect, p.id).state is ProspectState.HUMAN_REVIEW  # type: ignore[union-attr]
+            assert (
+                len(db.scalars(select(Job).where(Job.queue == "audit")).all()) == 1
+            )  # no audit loop
     finally:
         rt.close()
 

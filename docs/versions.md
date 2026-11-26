@@ -13,6 +13,7 @@ advisories before upgrading and update this file in the same change.
 | Node.js | 22.23.5 LTS (`node:22.23.5-bookworm-slim`) | dashboard Dockerfile, CI, `package.json` engines |
 | PostgreSQL | 18.7 (`postgres:18.7-alpine3.24`) | `docker-compose.yml` |
 | Redis | 8.12.0 (`redis:8.12.0-alpine3.23`) | `docker-compose.yml` |
+| Playwright (browser sandbox) | 1.63.0 (`mcr.microsoft.com/playwright/python:v1.63.0-noble`, Chromium build 1243) | `infrastructure/docker/browser.Dockerfile`, `apps/browser/pyproject.toml` |
 | Docker Engine / Compose (dev host used for verification) | 29.9.3 / v5.7.1 | not pinned |
 
 Image digests are not pinned yet; digest pinning is a Phase 11 production-hardening task.
@@ -39,6 +40,8 @@ Image digests are not pinned yet; digest pinning is a Phase 11 production-harden
 | httpx (runtime: Places connector) | 0.28.1 |
 | httpcore (SSRF-safe fetcher) | 1.0.9 |
 | idna | 3.20 |
+| boto3 (S3 storage) | 1.44.12 |
+| moto (dev, S3 tests) | 5.2.6 |
 | pytest / pytest-asyncio | 9.2.0 / 1.5.0 |
 | ruff | 0.17.6 |
 | mypy | 2.4.1 |

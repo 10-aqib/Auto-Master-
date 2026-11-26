@@ -5,8 +5,8 @@
 | 00 | Foundation | Complete | Disabled (rejected by config) |
 | 01 | Database + auth | Complete | Disabled (rejected by config) |
 | 02 | Source adapters | Complete | Disabled (rejected by config) |
-| 03 | Discovery | **Complete** (owner pre-approved all phases) | Disabled (rejected by config) |
-| 04 | Website audit | Not started | Disabled |
+| 03 | Discovery | Complete | Disabled (rejected by config) |
+| 04 | Website audit | **Complete** | Disabled (rejected by config) |
 | 05 | AI intelligence | Not started | Disabled |
 | 06 | Design generation | Not started | Disabled |
 | 07 | Validation | Not started | Disabled |
@@ -14,6 +14,47 @@
 | 09 | Email/compliance | Not started | Sandbox only |
 | 10 | Dashboard/orchestration | Not started | Paused |
 | 11 | Production | Not started | Only approved category |
+
+## Phase 04 — Isolated website audit engine (2026-11-26)
+
+### Delivered
+- **Browser sandbox** (`apps/browser`, Playwright 1.63 image): evidence collection only (desktop 1440×1000 and
+  mobile 390×844 screenshots, DOM metrics, console errors, failed requests, bounded same-site crawl). No clicks,
+  typing or form submission; downloads, service workers, non-http(s)/media/websocket requests blocked; fresh
+  Chromium per audit.
+- **Egress proxy** (`webforge_api.egress_proxy`): the sandbox's only route out; DNS resolved and vetted at the
+  proxy, private/loopback/link-local/metadata/IPv6-local refused, ports 80/443, byte/time caps.
+- **Topology**: `sandbox` network is internal (no internet, no DB/Redis/API); `worker-audit` bridges backend and
+  sandbox; sandbox has no secrets, runs non-root with a read-only filesystem and CPU/memory/pid limits.
+- **Runtime isolation gate**: the worker calls the sandbox `/selftest` before auditing; audits fail with
+  `isolation_unproven` if any internal target is reachable. `make isolation` runs the same proof from inside the
+  running container (also in CI).
+- **Deterministic audit rules v1**: findings with code, severity, viewport, evidence, confidence and reproduction
+  steps; category scores (branding NOT_TESTED); bot-blocked/erroring sites recorded as FAILED with no scores.
+- **Storage adapters**: private local volume and S3-compatible (SSE) with traversal-safe keys; screenshots served
+  only to signed-in staff.
+- **Pipeline**: qualification without audit evidence queues an audit; finished audits trigger re-qualification;
+  failed audits go to manual review (no retry loop).
+- **UI**: audit section on prospects (run audit, history) and an audit page (categories, findings, strengths,
+  caveats, screenshots). Docs: `docs/security/browser-isolation.md`, ADR 0005.
+
+### Verification evidence (local run, 2026-11-26)
+
+| Check | Result |
+|---|---|
+| API tests (real PostgreSQL + Redis) | PASS — 365 passed |
+| Browser sandbox tests (12 fixture sites incl. fixed-width, broken images, 404 nav, missing CTA, slow, oversized media, cookie overlay, bot-blocked, non-http schemes) | PASS — 12 passed |
+| Egress proxy SSRF tests (loopback, metadata, mixed DNS, private IPs, ports, redirects, byte cap) | PASS — 11 passed |
+| Lint / strict types (API 109 files, sandbox 4 files, dashboard) | PASS |
+| Docker stack — 9 services | PASS — all healthy |
+| Smoke | PASS — 15/15 |
+| Isolation proof from inside the sandbox (`make isolation`) | PASS — 8/8: no direct TCP to postgres/redis/api/dashboard/metadata/internet, proxy refuses internal targets, no secrets, cannot resolve `postgres`, no published ports, non-root, read-only FS |
+| Live chain worker → sandbox → proxy → internet | PASS (chain); the target page itself failed because this build environment intercepts TLS — Chromium correctly rejected the intercepted certificate and the audit was recorded as FAILED |
+| Browser E2E | PASS — 23/23 |
+| Error log lines (api, workers, browser, proxy) | 0 |
+
+Not run here: a successful audit of a real public website (needs normal internet egress; run `make dev` on the
+VPS and audit any verified prospect).
 
 ## Phase 03 — Campaigns, discovery, dedupe and qualification (2026-11-26)
 
