@@ -14,7 +14,7 @@ import ipaddress
 import json
 from enum import StrEnum
 from functools import lru_cache
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -174,6 +174,8 @@ class Settings(BaseSettings):
     email_provider_policy_approved: bool = False
 
     # Storage
+    storage_backend: Literal["local", "s3"] = "local"
+    storage_local_root: str = "/data/artifacts"
     s3_endpoint: str = ""
     s3_region: str = ""
     s3_bucket: str = ""
@@ -182,6 +184,10 @@ class Settings(BaseSettings):
     s3_force_path_style: bool = False
     artifact_retention_days: PositiveInt = 90
     preview_retention_days: PositiveInt = 30
+
+    # Browser sandbox (Phase 04): internal URL of the isolated browser service.
+    browser_service_url: str = "http://browser:9000"
+    audit_version: str = "1"
 
     # Official-website verification (independent source)
     website_fetch_user_agent: str = Field(
@@ -331,6 +337,8 @@ class Settings(BaseSettings):
             problems.append("COOKIE_SECURE must be true in production")
         if self.google_places_api_enabled and not self.google_maps_api_key.get_secret_value():
             problems.append("GOOGLE_PLACES_API_ENABLED=true requires GOOGLE_MAPS_API_KEY")
+        if self.storage_backend == "s3" and not (self.s3_bucket and self.s3_region):
+            problems.append("STORAGE_BACKEND=s3 requires S3_BUCKET and S3_REGION")
         if not self.mfa_required_for_owner:
             problems.append("MFA_REQUIRED_FOR_OWNER must be true in production")
 

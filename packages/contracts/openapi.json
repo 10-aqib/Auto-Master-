@@ -142,6 +142,159 @@
         "title": "AttributionOut",
         "type": "object"
       },
+      "AuditDetail": {
+        "properties": {
+          "audit": {
+            "$ref": "#/components/schemas/AuditOut"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/FindingOut"
+            },
+            "title": "Findings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "audit",
+          "findings"
+        ],
+        "title": "AuditDetail",
+        "type": "object"
+      },
+      "AuditOut": {
+        "properties": {
+          "audit_version": {
+            "title": "Audit Version",
+            "type": "string"
+          },
+          "browser_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser Version"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "desktop_screenshot_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desktop Screenshot Key"
+          },
+          "error_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Summary"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mobile_screenshot_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mobile Screenshot Key"
+          },
+          "performance_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Source"
+          },
+          "prospect_id": {
+            "format": "uuid",
+            "title": "Prospect Id",
+            "type": "string"
+          },
+          "scores": {
+            "additionalProperties": true,
+            "title": "Scores",
+            "type": "object"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "prospect_id",
+          "url",
+          "status",
+          "audit_version",
+          "started_at",
+          "finished_at",
+          "desktop_screenshot_key",
+          "mobile_screenshot_key",
+          "browser_version",
+          "performance_source",
+          "scores",
+          "error_summary",
+          "created_at"
+        ],
+        "title": "AuditOut",
+        "type": "object"
+      },
       "AuthResponse": {
         "properties": {
           "csrf_token": {
@@ -561,6 +714,106 @@
           "status"
         ],
         "title": "DependencyCheck",
+        "type": "object"
+      },
+      "FindingOut": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "evidence_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Text"
+          },
+          "evidence_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Url"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "reproduction_steps": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reproduction Steps"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "viewport": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Viewport"
+          }
+        },
+        "required": [
+          "id",
+          "category",
+          "severity",
+          "code",
+          "description",
+          "evidence_url",
+          "evidence_text",
+          "viewport",
+          "confidence",
+          "observed_at",
+          "reproduction_steps"
+        ],
+        "title": "FindingOut",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -2620,6 +2873,157 @@
         ]
       }
     },
+    "/api/v1/audits": {
+      "get": {
+        "operationId": "list_audits_api_v1_audits_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "prospect_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Prospect Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditOut"
+                  },
+                  "title": "Response List Audits Api V1 Audits Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Audits",
+        "tags": [
+          "audits"
+        ]
+      }
+    },
+    "/api/v1/audits/{audit_id}": {
+      "get": {
+        "operationId": "get_audit_api_v1_audits__audit_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "audit_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Audit Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Audit",
+        "tags": [
+          "audits"
+        ]
+      }
+    },
+    "/api/v1/audits/{audit_id}/screenshots/{view}": {
+      "get": {
+        "operationId": "audit_screenshot_api_v1_audits__audit_id__screenshots__view__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "audit_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Audit Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "view",
+            "required": true,
+            "schema": {
+              "enum": [
+                "desktop",
+                "mobile"
+              ],
+              "title": "View",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Audit Screenshot",
+        "tags": [
+          "audits"
+        ]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "operationId": "login_api_v1_auth_login_post",
@@ -3910,6 +4314,49 @@
         "summary": "Get Prospect",
         "tags": [
           "discovery"
+        ]
+      }
+    },
+    "/api/v1/prospects/{prospect_id}/audit": {
+      "post": {
+        "operationId": "start_audit_api_v1_prospects__prospect_id__audit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "prospect_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Prospect Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Audit",
+        "tags": [
+          "audits"
         ]
       }
     },

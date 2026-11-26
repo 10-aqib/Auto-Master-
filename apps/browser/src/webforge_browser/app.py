@@ -1,0 +1,65 @@
+"""Sandbox HTTP API (listens only on the internal sandbox network)."""
+
+from __future__ import annotations
+
+import asyncio
+import os
+from typing import Any
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, ConfigDict, Field
+
+from webforge_browser import __version__
+from webforge_browser.auditor import Limits, run_audit
+from webforge_browser.selftest import run_selftest
+
+PROXY = os.environ.get("EGRESS_PROXY_URL")  # e.g. http://egress-proxy:3128
+app = FastAPI(
+    title="WEBFORGE browser sandbox",
+    version=__version__,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
+_slot = asyncio.Semaphore(int(os.environ.get("BROWSER_CONCURRENCY", "1")))
+
+
+class AuditRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    url: str = Field(min_length=8, max_length=2048, pattern=r"^https?://")
+    max_pages: int = Field(default=10, ge=1, le=20)
+    max_depth: int = Field(default=2, ge=0, le=3)
+    page_timeout_s: float = Field(default=30, gt=0, le=60)
+    total_timeout_s: float = Field(default=300, gt=0, le=600)
+    user_agent: str = Field(default="WEBFORGE-AI-Audit/0.1", max_length=200)
+
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok", "version": __version__}
+
+
+@app.get("/selftest")
+async def selftest() -> dict[str, Any]:
+    return await run_selftest(PROXY)
+
+
+@app.post("/audit")
+async def audit(body: AuditRequest) -> dict[str, Any]:
+    if not PROXY and os.environ.get("ALLOW_NO_PROXY") != "1":
+        raise HTTPException(503, "Egress proxy not configured; refusing to browse.")
+    limits = Limits(
+        max_pages=body.max_pages,
+        max_depth=body.max_depth,
+        page_timeout_s=body.page_timeout_s,
+        total_timeout_s=body.total_timeout_s,
+        user_agent=body.user_agent,
+    )
+    async with _slot:
+        try:
+            return await asyncio.wait_for(
+                run_audit(body.url, limits, PROXY), body.total_timeout_s + 30
+            )
+        except TimeoutError as exc:
+            raise HTTPException(504, "Audit exceeded its time limit.") from exc

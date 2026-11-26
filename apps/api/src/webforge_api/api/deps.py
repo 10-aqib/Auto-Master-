@@ -25,6 +25,7 @@ from webforge_api.services.users import UserService
 from webforge_api.sources.registry import SourceRegistry
 from webforge_api.sources.usage import UsageService
 from webforge_api.sources.website import WebsiteVerifier
+from webforge_api.storage import Storage
 
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 CSRF_HEADER = "x-csrf-token"
@@ -232,3 +233,11 @@ AnyStaff = Annotated[
     Principal, Depends(require_roles(Role.OWNER, Role.ADMIN, Role.REVIEWER, Role.READ_ONLY))
 ]
 Reviewers = Annotated[Principal, Depends(require_roles(Role.OWNER, Role.ADMIN, Role.REVIEWER))]
+
+
+def get_storage(request: Request) -> Storage:
+    storage: Storage = request.app.state.storage
+    return storage
+
+
+StorageDep = Annotated[Storage, Depends(get_storage)]

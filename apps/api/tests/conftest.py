@@ -223,6 +223,11 @@ def harness(db_url: str) -> Iterator[Harness]:
 
 
 def _harness(settings: Settings, **app_kwargs: Any) -> Iterator[Harness]:
+    import tempfile
+
+    from webforge_api.storage import LocalStorage
+
+    app_kwargs.setdefault("storage", LocalStorage(tempfile.mkdtemp(prefix="wf-artifacts-")))
     clock = FakeClock()
     limiter = MemoryRateLimiter()
     app = create_app(settings, rate_limiter=limiter, clock=clock, **app_kwargs)

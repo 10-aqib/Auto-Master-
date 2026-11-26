@@ -20,6 +20,7 @@ from webforge_api.models import Campaign, ExternalPlaceIdentifier, Job, Prospect
 from webforge_api.models.enums import CampaignStatus, ProspectState
 from webforge_api.security.crypto import Crypto
 from webforge_api.services import controls
+from webforge_api.services.audits import AUDIT, AuditDeps, BrowserClient, run_audit
 from webforge_api.services.campaigns import DISCOVERY_VERIFY, QUALIFY
 from webforge_api.services.context import RequestMeta
 from webforge_api.services.errors import ServiceError, UnavailableError
@@ -27,6 +28,7 @@ from webforge_api.services.jobs import JobCancelled, JobError, enqueue
 from webforge_api.services.places import PlacesService
 from webforge_api.services.prospect_state import LOCKED, transition
 from webforge_api.services.qualification import qualify
+from webforge_api.storage import Storage
 
 
 class JobDeferred(Exception):  # noqa: N818 - control-flow signal
@@ -44,6 +46,8 @@ class JobContext:
     crypto: Crypto
     now: datetime
     places: PlacesService
+    storage: Storage | None = None
+    browser: BrowserClient | None = None
 
 
 def _meta(job: Job) -> RequestMeta:
@@ -209,6 +213,22 @@ def handle_qualify(ctx: JobContext, job: Job) -> dict[str, Any]:
         now=ctx.now,
         apply_state=prospect.state not in LOCKED,
     )
+    if (
+        "awaiting_audit_evidence" in result.reason_codes
+        and prospect.website_url
+        and prospect.state not in LOCKED
+        and not prospect.do_not_contact
+    ):
+        enqueue(
+            ctx.db,
+            AUDIT,
+            idempotency_key=f"audit:{prospect.id}:{ctx.settings.audit_version}:{ctx.now.date()}",
+            payload={"prospect_id": str(prospect.id), "campaign_id": p.get("campaign_id")},
+            now=ctx.now,
+            entity_type="prospect",
+            entity_id=prospect.id,
+            correlation_id=job.correlation_id,
+        )
     ctx.db.commit()
     return {
         "outcome": result.outcome.value,
@@ -216,7 +236,36 @@ def handle_qualify(ctx: JobContext, job: Job) -> dict[str, Any]:
     }
 
 
+def handle_audit(ctx: JobContext, job: Job) -> dict[str, Any]:
+    if controls.is_paused(ctx.db, ctx.settings):
+        raise JobDeferred("system paused")
+    if ctx.storage is None or ctx.browser is None:
+        raise JobError("misconfigured", "Audit worker has no storage or browser client.")
+    audit = run_audit(
+        AuditDeps(ctx.db, ctx.settings, ctx.crypto, ctx.storage, ctx.browser, ctx.now),
+        uuid.UUID(job.payload["prospect_id"]),
+    )
+    campaign_id = job.payload.get("campaign_id")
+    enqueue(
+        ctx.db,
+        QUALIFY,
+        idempotency_key=f"qualify:{audit.prospect_id}:after-audit:{audit.id}",
+        payload={"prospect_id": str(audit.prospect_id), "campaign_id": campaign_id},
+        now=ctx.now,
+        entity_type="prospect",
+        entity_id=audit.prospect_id,
+        correlation_id=job.correlation_id,
+    )
+    ctx.db.commit()
+    return {
+        "audit_id": str(audit.id),
+        "status": audit.status.value,
+        "overall": (audit.scores or {}).get("overall"),
+    }
+
+
 HANDLERS = {
+    "prospect.audit": handle_audit,
     "discovery.search": handle_search,
     "discovery.verify": handle_verify,
     "prospect.qualify": handle_qualify,

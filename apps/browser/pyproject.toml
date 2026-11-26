@@ -1,0 +1,49 @@
+[project]
+name = "webforge-browser"
+version = "0.0.0"
+description = "WEBFORGE AI isolated browser sandbox (no secrets, no database access)"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "fastapi==0.165.0",
+    "uvicorn==0.54.0",
+    "playwright==1.63.0",
+    "pydantic==2.14.4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.2.0",
+    "pytest-asyncio==1.5.0",
+    "httpx==0.28.1",
+    "ruff==0.17.6",
+    "mypy==2.4.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/webforge_browser"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "N", "SIM", "RUF", "ASYNC"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S104", "E501", "SIM105"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+packages = ["webforge_browser"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra"

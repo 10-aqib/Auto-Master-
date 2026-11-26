@@ -27,6 +27,7 @@ from webforge_api.net.safe_fetch import FetchPolicy, SafeFetcher
 from webforge_api.security.crypto import Crypto
 from webforge_api.security.rate_limit import RateLimiter, RedisRateLimiter
 from webforge_api.services import jobs as jobqueue
+from webforge_api.services.audits import BrowserClient
 from webforge_api.services.job_handlers import HANDLERS, JobContext, JobDeferred
 from webforge_api.services.jobs import JobError
 from webforge_api.services.places import PlacesService
@@ -34,9 +35,10 @@ from webforge_api.sources.places import ConnectorFactory
 from webforge_api.sources.registry import SourceRegistry
 from webforge_api.sources.usage import UsageService
 from webforge_api.sources.website import WebsiteVerifier
+from webforge_api.storage import Storage, build_storage
 
 log = get_logger("webforge_api.worker")
-ALL_QUEUES = ["discovery", "verification", "qualification"]
+ALL_QUEUES = ["discovery", "verification", "qualification", "audit"]
 
 
 class Runtime:
@@ -51,6 +53,8 @@ class Runtime:
         fetch_policy: FetchPolicy | None = None,
         clock: Callable[[], Any] = utcnow,
         handlers: dict[str, Callable[[JobContext, Job], dict[str, Any] | None]] | None = None,
+        storage: Storage | None = None,
+        browser: BrowserClient | None = None,
     ) -> None:
         self.settings = settings
         self.engine = build_engine(settings)
@@ -70,6 +74,8 @@ class Runtime:
         )
         self.clock = clock
         self.handlers = handlers or dict(HANDLERS)
+        self.storage = storage or build_storage(settings)
+        self.browser = browser or BrowserClient(settings.browser_service_url)
 
     def context(self, db: Any) -> JobContext:
         now = self.clock()
@@ -83,10 +89,19 @@ class Runtime:
             WebsiteVerifier(SafeFetcher(self.fetch_policy), self.settings.website_fetch_user_agent),
             now,
         )
-        return JobContext(db=db, settings=self.settings, crypto=self.crypto, now=now, places=places)
+        return JobContext(
+            db=db,
+            settings=self.settings,
+            crypto=self.crypto,
+            now=now,
+            places=places,
+            storage=self.storage,
+            browser=self.browser,
+        )
 
     def close(self) -> None:
         self.connectors.close()
+        self.browser.close()
         self.engine.dispose()
 
 

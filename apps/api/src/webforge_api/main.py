@@ -24,6 +24,7 @@ from webforge_api.net.safe_fetch import FetchPolicy
 from webforge_api.security.crypto import Crypto
 from webforge_api.security.rate_limit import RateLimiter, RedisRateLimiter
 from webforge_api.sources.places import ConnectorFactory
+from webforge_api.storage import Storage, build_storage
 
 log = get_logger(__name__)
 
@@ -35,6 +36,7 @@ def create_app(
     clock: Callable[[], datetime] = utcnow,
     places_transport: httpx.BaseTransport | None = None,
     fetch_policy: FetchPolicy | None = None,
+    storage: Storage | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level.value, json_output=settings.app_env is not AppEnv.TEST)
@@ -71,6 +73,7 @@ def create_app(
     app.state.sessionmaker = build_sessionmaker(engine)
     app.state.clock = clock
     # Test hooks: an httpx transport for the Places API and a fetch policy for website checks.
+    app.state.storage = storage or build_storage(settings)
     app.state.connectors = ConnectorFactory(
         settings.google_maps_api_key.get_secret_value(), transport=places_transport
     )
