@@ -13,7 +13,8 @@ async function LiveApiStatus() {
 
 const SAFETY_DEFAULTS = [
   "External email sending is disabled and cannot be enabled in this build.",
-  "Google Places discovery is disabled until the policy-safe connector exists.",
+  "Every data source starts disabled and needs an owner terms review before use.",
+  "Only Google Place IDs are stored; other Maps content is shown once with attribution.",
   "Global and email pause switches default to ON (fail closed).",
 ];
 

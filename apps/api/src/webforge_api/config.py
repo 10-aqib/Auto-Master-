@@ -11,6 +11,7 @@ from __future__ import annotations
 import base64
 import binascii
 import ipaddress
+import json
 from enum import StrEnum
 from functools import lru_cache
 from typing import Annotated, Self
@@ -54,6 +55,22 @@ class ConfigurationError(RuntimeError):
 def _is_placeholder(value: str) -> bool:
     upper = value.upper()
     return any(marker in upper for marker in PLACEHOLDER_MARKERS)
+
+
+def parse_sku_prices(raw: str) -> dict[str, int]:
+    """Parse GOOGLE_PLACES_SKU_PRICES_MINOR_PER_1000 (JSON object of non-negative ints)."""
+    try:
+        data = json.loads(raw or "{}")
+    except json.JSONDecodeError as exc:
+        raise ValueError("GOOGLE_PLACES_SKU_PRICES_MINOR_PER_1000 must be a JSON object") from exc
+    if not isinstance(data, dict) or not all(
+        isinstance(k, str) and isinstance(v, int) and not isinstance(v, bool) and v >= 0
+        for k, v in data.items()
+    ):
+        raise ValueError(
+            "GOOGLE_PLACES_SKU_PRICES_MINOR_PER_1000 must map SKU names to non-negative integers"
+        )
+    return dict(data)
 
 
 def is_valid_encryption_key(value: str) -> bool:
@@ -131,6 +148,16 @@ class Settings(BaseSettings):
     google_places_api_enabled: bool = False
     google_places_daily_budget_minor: NonNegativeInt = 0
     google_places_max_requests_per_campaign: NonNegativeInt = 0
+    # Requests per UTC day across all campaigns (0 = none allowed).
+    google_places_daily_request_cap: NonNegativeInt = 0
+    google_places_rate_limit_per_minute: Annotated[int, Field(gt=0, le=600)] = 30
+    # JSON map of SKU -> price in minor units per 1000 requests, copied from Google's current
+    # price list by the owner. A SKU without a price is refused (fail closed).
+    google_places_sku_prices_minor_per_1000: str = "{}"
+    google_places_price_currency: str = Field(default="USD", pattern=r"^[A-Z]{3}$")
+    google_places_language_code: str = Field(
+        default="en", pattern=r"^[a-zA-Z]{2,3}(-[A-Za-z0-9]{2,8})?$"
+    )
 
     # Email
     email_provider: EmailProvider = EmailProvider.MOCK
@@ -155,6 +182,13 @@ class Settings(BaseSettings):
     s3_force_path_style: bool = False
     artifact_retention_days: PositiveInt = 90
     preview_retention_days: PositiveInt = 30
+
+    # Official-website verification (independent source)
+    website_fetch_user_agent: str = Field(
+        default="WEBFORGE-AI-Verifier/0.2 (website verification; respects robots.txt)",
+        min_length=8,
+        max_length=200,
+    )
 
     # Limits / worker runtime
     browser_max_pages: PositiveInt = 10
@@ -219,12 +253,13 @@ class Settings(BaseSettings):
                 "EMAIL_SENDING_ENABLED=true is rejected: compliant sending is not implemented "
                 "(Phase 09) and requires owner approval."
             )
-        if self.google_places_api_enabled:
-            raise ValueError(
-                "GOOGLE_PLACES_API_ENABLED=true is rejected: the policy-safe Places connector "
-                "is not implemented (Phase 02)."
-            )
         return self
+
+    @field_validator("google_places_sku_prices_minor_per_1000")
+    @classmethod
+    def _valid_prices(cls, value: str) -> str:
+        parse_sku_prices(value)
+        return value
 
     @property
     def is_production(self) -> bool:
@@ -233,6 +268,10 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.cors_allowed_origins.split(",") if o.strip()]
+
+    @property
+    def places_sku_prices(self) -> dict[str, int]:
+        return parse_sku_prices(self.google_places_sku_prices_minor_per_1000)
 
     @property
     def trusted_proxies(self) -> list[ipaddress.IPv4Network | ipaddress.IPv6Network]:
@@ -288,6 +327,8 @@ class Settings(BaseSettings):
             )
         if not self.cookie_secure:
             problems.append("COOKIE_SECURE must be true in production")
+        if self.google_places_api_enabled and not self.google_maps_api_key.get_secret_value():
+            problems.append("GOOGLE_PLACES_API_ENABLED=true requires GOOGLE_MAPS_API_KEY")
         if not self.mfa_required_for_owner:
             problems.append("MFA_REQUIRED_FOR_OWNER must be true in production")
 

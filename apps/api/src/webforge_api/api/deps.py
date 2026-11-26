@@ -12,13 +12,18 @@ from webforge_api.api.cookies import CookieNames
 from webforge_api.config import Settings
 from webforge_api.db.session import get_db
 from webforge_api.models.enums import Role
+from webforge_api.net.safe_fetch import FetchPolicy, SafeFetcher
 from webforge_api.security.crypto import Crypto
 from webforge_api.security.rate_limit import RateLimiter
 from webforge_api.security.tokens import csrf_matches, csrf_token_for
 from webforge_api.services.auth import AuthService, Principal, SessionState
 from webforge_api.services.context import RequestMeta
 from webforge_api.services.errors import PermissionDeniedError
+from webforge_api.services.places import PlacesService
 from webforge_api.services.users import UserService
+from webforge_api.sources.registry import SourceRegistry
+from webforge_api.sources.usage import UsageService
+from webforge_api.sources.website import WebsiteVerifier
 
 UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 CSRF_HEADER = "x-csrf-token"
@@ -170,3 +175,43 @@ AnyPrincipal = Annotated[Principal, Depends(principal_in_states(*ANY_STATE))]
 ActivePrincipal = Annotated[Principal, Depends(principal_in_states(SessionState.ACTIVE))]
 OwnerOrAdmin = Annotated[Principal, Depends(require_roles(Role.OWNER, Role.ADMIN))]
 OwnerOnly = Annotated[Principal, Depends(require_roles(Role.OWNER))]
+
+
+# ---------------------------------------------------------------------- Phase 02: sources
+
+
+def get_registry(
+    db: DbDep, settings: SettingsDep, crypto: CryptoDep, now: NowDep
+) -> SourceRegistry:
+    return SourceRegistry(db, settings, crypto, now)
+
+
+RegistryDep = Annotated[SourceRegistry, Depends(get_registry)]
+
+
+def get_usage_service(
+    db: DbDep, settings: SettingsDep, now: NowDep, request: Request
+) -> UsageService:
+    return UsageService(db, settings, get_rate_limiter(request), now)
+
+
+UsageDep = Annotated[UsageService, Depends(get_usage_service)]
+
+
+def get_places_service(
+    request: Request,
+    db: DbDep,
+    settings: SettingsDep,
+    crypto: CryptoDep,
+    now: NowDep,
+    registry: RegistryDep,
+    usage: UsageDep,
+) -> PlacesService:
+    policy: FetchPolicy = request.app.state.fetch_policy
+    verifier = WebsiteVerifier(SafeFetcher(policy), settings.website_fetch_user_agent)
+    return PlacesService(
+        db, settings, crypto, registry, usage, request.app.state.connectors, verifier, now
+    )
+
+
+PlacesServiceDep = Annotated[PlacesService, Depends(get_places_service)]

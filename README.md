@@ -4,8 +4,9 @@ Internal platform for Muhammad Aqib (Website Developer) to discover business pro
 public websites, create independent redesign concepts, prepare proposals and run legally eligible
 outreach. It is being built in 12 controlled phases.
 
-**Current state: Phase 01 (database and secure authentication) complete.** Accounts, MFA, roles and the
-activity log work end to end. No discovery, external API calls or email sending exist yet. See
+**Current state: Phase 02 (source adapters and data governance) complete.** Accounts, MFA, roles, the
+activity log, a data-source registry, a policy-safe Google Places connector (Place IDs only) and independent
+website verification work end to end. All sources start disabled; email sending does not exist yet. See
 [`docs/implementation-status.md`](docs/implementation-status.md).
 
 ## Stack
@@ -38,7 +39,7 @@ Stop with `make down`. Run `make help` for every command.
 ```bash
 make lint && make typecheck
 make test-integration   # starts throwaway Postgres/Redis; runs every API and dashboard test
-make e2e                # browser end-to-end auth flow against `make dev` (fresh database)
+make e2e                # browser end-to-end console flow against `make dev` (fresh database)
 ```
 
 `make test` runs without a database and reports the database tests as skipped. CI runs everything,

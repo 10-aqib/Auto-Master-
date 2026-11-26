@@ -1,6 +1,6 @@
 # Pinned Versions
 
-Recorded 2026-11-26 (Phase 00), updated for Phase 01. Versions are pinned exactly in lockfiles, `pyproject.toml`,
+Recorded 2026-11-26 (Phase 00), updated for Phases 01–02. Versions are pinned exactly in lockfiles, `pyproject.toml`,
 `package.json`, Dockerfiles, Compose and CI. Never use floating `latest` tags. Review security
 advisories before upgrading and update this file in the same change.
 
@@ -36,8 +36,10 @@ Image digests are not pinned yet; digest pinning is a Phase 11 production-harden
 | pyotp | 2.12.1 |
 | cryptography | 50.0.2 |
 | segno (QR codes) | 1.6.6 |
+| httpx (runtime: Places connector) | 0.28.1 |
+| httpcore (SSRF-safe fetcher) | 1.0.9 |
+| idna | 3.20 |
 | pytest / pytest-asyncio | 9.2.0 / 1.5.0 |
-| httpx (test client) | 0.28.1 |
 | ruff | 0.17.6 |
 | mypy | 2.4.1 |
 
@@ -54,6 +56,7 @@ Image digests are not pinned yet; digest pinning is a Phase 11 production-harden
 | @testing-library/react | 16.3.3 |
 | jsdom | 31.0.1 |
 | prettier | 3.10.1 |
+| @fontsource/roboto (attribution font, self-hosted) | 5.3.0 |
 
 TypeScript 7 (native port) was available but not chosen: Next.js tooling targets 5.x.
 ESLint 9 is used because `eslint-config-next` 16.4.6 is generated against it.

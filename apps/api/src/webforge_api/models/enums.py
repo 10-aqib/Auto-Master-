@@ -157,3 +157,45 @@ class PolicyStatus(StrEnum):
     IN_REVIEW = "IN_REVIEW"
     ACTIVE = "ACTIVE"
     RETIRED = "RETIRED"
+
+
+class SourceType(StrEnum):
+    """Kinds of data source in the registry."""
+
+    MAPS_API = "MAPS_API"  # e.g. Google Places: identifiers only may be persisted
+    OFFICIAL_WEBSITE = "OFFICIAL_WEBSITE"
+    REGISTRY = "REGISTRY"
+    LICENSED_PROVIDER = "LICENSED_PROVIDER"
+    OWNER_UPLOAD = "OWNER_UPLOAD"
+    MOCK = "MOCK"
+
+
+class SourceStatus(StrEnum):
+    DISABLED = "DISABLED"
+    ENABLED = "ENABLED"
+
+
+class ProvenanceSource(StrEnum):
+    """Sources allowed to back a persisted business fact. Maps content is deliberately absent."""
+
+    OFFICIAL_WEBSITE = "OFFICIAL_WEBSITE"
+    REGISTRY = "REGISTRY"
+    LICENSED_PROVIDER = "LICENSED_PROVIDER"
+    OWNER_PROVIDED = "OWNER_PROVIDED"
+
+
+class DomainVerificationStatus(StrEnum):
+    VERIFIED = "VERIFIED"
+    HOLD = "HOLD"
+    REJECTED = "REJECTED"
+
+
+class PlaceIdStatus(StrEnum):
+    ACTIVE = "ACTIVE"
+    OBSOLETE = "OBSOLETE"
+
+
+class UsageOutcome(StrEnum):
+    RESERVED = "RESERVED"
+    SUCCESS = "SUCCESS"
+    ERROR = "ERROR"

@@ -119,6 +119,29 @@
         "title": "ActivityPage",
         "type": "object"
       },
+      "AttributionOut": {
+        "properties": {
+          "is_mock": {
+            "title": "Is Mock",
+            "type": "boolean"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "required",
+          "is_mock"
+        ],
+        "title": "AttributionOut",
+        "type": "object"
+      },
       "AuthResponse": {
         "properties": {
           "csrf_token": {
@@ -151,6 +174,29 @@
           "count"
         ],
         "title": "CountResponse",
+        "type": "object"
+      },
+      "DailyUsageOut": {
+        "properties": {
+          "cost_minor": {
+            "title": "Cost Minor",
+            "type": "integer"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "requests": {
+            "title": "Requests",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "requests",
+          "cost_minor"
+        ],
+        "title": "DailyUsageOut",
         "type": "object"
       },
       "DependencyCheck": {
@@ -203,6 +249,80 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IdentifierOut": {
+        "properties": {
+          "campaign_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign Id"
+          },
+          "first_seen_at": {
+            "format": "date-time",
+            "title": "First Seen At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_checked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Checked At"
+          },
+          "place_id": {
+            "title": "Place Id",
+            "type": "string"
+          },
+          "prospect_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prospect Id"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "provider",
+          "place_id",
+          "status",
+          "prospect_id",
+          "campaign_id",
+          "first_seen_at",
+          "last_checked_at"
+        ],
+        "title": "IdentifierOut",
         "type": "object"
       },
       "LiveResponse": {
@@ -375,6 +495,30 @@
         "title": "MfaVerifyRequest",
         "type": "object"
       },
+      "OwnerVerifyRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_name": {
+            "maxLength": 200,
+            "minLength": 2,
+            "title": "Expected Name",
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 2048,
+            "minLength": 8,
+            "pattern": "^https?://",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expected_name"
+        ],
+        "title": "OwnerVerifyRequest",
+        "type": "object"
+      },
       "PasswordChangeRequest": {
         "additionalProperties": false,
         "properties": {
@@ -396,6 +540,74 @@
           "new_password"
         ],
         "title": "PasswordChangeRequest",
+        "type": "object"
+      },
+      "PlaceOut": {
+        "description": "Transient Maps content: display with attribution, never store.",
+        "properties": {
+          "business_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Status"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "formatted_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formatted Address"
+          },
+          "google_maps_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Google Maps Uri"
+          },
+          "identifier_id": {
+            "format": "uuid",
+            "title": "Identifier Id",
+            "type": "string"
+          },
+          "place_id": {
+            "title": "Place Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "place_id",
+          "identifier_id",
+          "display_name",
+          "formatted_address",
+          "business_status",
+          "google_maps_uri"
+        ],
+        "title": "PlaceOut",
         "type": "object"
       },
       "ReadyResponse": {
@@ -439,6 +651,37 @@
         "title": "RecoveryCodesResponse",
         "type": "object"
       },
+      "ReviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "review_notes": {
+            "maxLength": 4000,
+            "minLength": 20,
+            "title": "Review Notes",
+            "type": "string"
+          },
+          "terms_url": {
+            "maxLength": 2048,
+            "minLength": 12,
+            "pattern": "^https://",
+            "title": "Terms Url",
+            "type": "string"
+          },
+          "terms_version": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Terms Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "terms_url",
+          "terms_version",
+          "review_notes"
+        ],
+        "title": "ReviewRequest",
+        "type": "object"
+      },
       "Role": {
         "enum": [
           "OWNER",
@@ -448,6 +691,108 @@
         ],
         "title": "Role",
         "type": "string"
+      },
+      "SearchRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "campaign_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Campaign Id"
+          },
+          "page_size": {
+            "default": 10,
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "region_code": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Z]{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region Code"
+          },
+          "source_key": {
+            "enum": [
+              "google_places",
+              "mock_places"
+            ],
+            "title": "Source Key",
+            "type": "string"
+          },
+          "text_query": {
+            "maxLength": 200,
+            "minLength": 3,
+            "title": "Text Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_key",
+          "text_query"
+        ],
+        "title": "SearchRequest",
+        "type": "object"
+      },
+      "SearchResponse": {
+        "properties": {
+          "attribution": {
+            "$ref": "#/components/schemas/AttributionOut"
+          },
+          "new_place_ids": {
+            "title": "New Place Ids",
+            "type": "integer"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceOut"
+            },
+            "title": "Places",
+            "type": "array"
+          },
+          "sku": {
+            "title": "Sku",
+            "type": "string"
+          },
+          "source_key": {
+            "title": "Source Key",
+            "type": "string"
+          },
+          "stored_place_ids": {
+            "title": "Stored Place Ids",
+            "type": "integer"
+          },
+          "transient": {
+            "const": true,
+            "default": true,
+            "title": "Transient",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source_key",
+          "attribution",
+          "sku",
+          "stored_place_ids",
+          "new_place_ids",
+          "places"
+        ],
+        "title": "SearchResponse",
+        "type": "object"
       },
       "SessionOut": {
         "properties": {
@@ -532,6 +877,321 @@
           "session_id"
         ],
         "title": "SessionStatus",
+        "type": "object"
+      },
+      "SourceOut": {
+        "properties": {
+          "attribution_required": {
+            "title": "Attribution Required",
+            "type": "boolean"
+          },
+          "attribution_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribution Text"
+          },
+          "blockers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Blockers",
+            "type": "array"
+          },
+          "cache_rules": {
+            "additionalProperties": true,
+            "title": "Cache Rules",
+            "type": "object"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "persistable_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Persistable Fields",
+            "type": "array"
+          },
+          "policy_urls": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Policy Urls",
+            "type": "array"
+          },
+          "review_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Notes"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SourceStatus"
+          },
+          "status_changed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Changed At"
+          },
+          "status_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Reason"
+          },
+          "terms_reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms Reviewed At"
+          },
+          "terms_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms Url"
+          },
+          "terms_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms Version"
+          },
+          "usable": {
+            "title": "Usable",
+            "type": "boolean"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UsageSummaryOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "display_name",
+          "source_type",
+          "status",
+          "description",
+          "persistable_fields",
+          "cache_rules",
+          "attribution_required",
+          "attribution_text",
+          "policy_urls",
+          "terms_url",
+          "terms_version",
+          "terms_reviewed_at",
+          "review_notes",
+          "status_changed_at",
+          "status_reason",
+          "usable",
+          "blockers",
+          "usage"
+        ],
+        "title": "SourceOut",
+        "type": "object"
+      },
+      "SourceStatus": {
+        "enum": [
+          "DISABLED",
+          "ENABLED"
+        ],
+        "title": "SourceStatus",
+        "type": "string"
+      },
+      "StatusRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "StatusRequest",
+        "type": "object"
+      },
+      "UsageReport": {
+        "properties": {
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/DailyUsageOut"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/UsageSummaryOut"
+          }
+        },
+        "required": [
+          "summary",
+          "days"
+        ],
+        "title": "UsageReport",
+        "type": "object"
+      },
+      "UsageSummaryOut": {
+        "properties": {
+          "budget_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Ratio"
+          },
+          "cap_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cap Ratio"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "daily_budget_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Budget Minor"
+          },
+          "daily_request_cap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Request Cap"
+          },
+          "exhausted": {
+            "title": "Exhausted",
+            "type": "boolean"
+          },
+          "month": {
+            "$ref": "#/components/schemas/UsageWindowOut"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "today": {
+            "$ref": "#/components/schemas/UsageWindowOut"
+          },
+          "warning": {
+            "title": "Warning",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "provider",
+          "currency",
+          "today",
+          "month",
+          "daily_budget_minor",
+          "daily_request_cap",
+          "budget_ratio",
+          "cap_ratio",
+          "warning",
+          "exhausted"
+        ],
+        "title": "UsageSummaryOut",
+        "type": "object"
+      },
+      "UsageWindowOut": {
+        "properties": {
+          "cost_minor": {
+            "title": "Cost Minor",
+            "type": "integer"
+          },
+          "requests": {
+            "title": "Requests",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requests",
+          "cost_minor"
+        ],
+        "title": "UsageWindowOut",
         "type": "object"
       },
       "UserCreateRequest": {
@@ -710,6 +1370,152 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VerificationOut": {
+        "properties": {
+          "candidate_origin": {
+            "title": "Candidate Origin",
+            "type": "string"
+          },
+          "candidate_url": {
+            "title": "Candidate Url",
+            "type": "string"
+          },
+          "checked_at": {
+            "format": "date-time",
+            "title": "Checked At",
+            "type": "string"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain"
+          },
+          "evidence": {
+            "additionalProperties": true,
+            "title": "Evidence",
+            "type": "object"
+          },
+          "final_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Url"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "place_identifier_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Identifier Id"
+          },
+          "prospect_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prospect Id"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reason Codes",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "method",
+          "reason_codes",
+          "confidence",
+          "candidate_url",
+          "final_url",
+          "domain",
+          "candidate_origin",
+          "evidence",
+          "checked_at",
+          "prospect_id",
+          "place_identifier_id"
+        ],
+        "title": "VerificationOut",
+        "type": "object"
+      },
+      "VerifyResponse": {
+        "properties": {
+          "place_obsolete": {
+            "title": "Place Obsolete",
+            "type": "boolean"
+          },
+          "prospect_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prospect Id"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/VerificationOut"
+          }
+        },
+        "required": [
+          "verification",
+          "prospect_id",
+          "place_obsolete"
+        ],
+        "title": "VerifyResponse",
         "type": "object"
       }
     }
@@ -1197,6 +2003,378 @@
         ]
       }
     },
+    "/api/v1/places/identifiers": {
+      "get": {
+        "operationId": "list_identifiers_api_v1_places_identifiers_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/IdentifierOut"
+                  },
+                  "title": "Response List Identifiers Api V1 Places Identifiers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Identifiers",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/api/v1/places/identifiers/{identifier_id}/verify-website": {
+      "post": {
+        "operationId": "verify_place_website_api_v1_places_identifiers__identifier_id__verify_website_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Place Website",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/api/v1/places/search": {
+      "post": {
+        "operationId": "places_search_api_v1_places_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Places Search",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/api/v1/sources": {
+      "get": {
+        "operationId": "list_sources_api_v1_sources_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SourceOut"
+                  },
+                  "title": "Response List Sources Api V1 Sources Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Sources",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/api/v1/sources/{key}/disable": {
+      "post": {
+        "operationId": "disable_source_api_v1_sources__key__disable_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Disable Source",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/api/v1/sources/{key}/enable": {
+      "post": {
+        "operationId": "enable_source_api_v1_sources__key__enable_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enable Source",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/api/v1/sources/{key}/review": {
+      "post": {
+        "operationId": "review_source_api_v1_sources__key__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Source",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/api/v1/usage/{provider}": {
+      "get": {
+        "operationId": "usage_report_api_v1_usage__provider__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "enum": [
+                "google_places",
+                "mock_places"
+              ],
+              "title": "Provider",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 14,
+              "maximum": 90,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Usage Report",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
     "/api/v1/users": {
       "get": {
         "operationId": "list_users_api_v1_users_get",
@@ -1390,6 +2568,96 @@
         "summary": "Revoke Sessions",
         "tags": [
           "users"
+        ]
+      }
+    },
+    "/api/v1/verification/recent": {
+      "get": {
+        "operationId": "recent_verifications_api_v1_verification_recent_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VerificationOut"
+                  },
+                  "title": "Response Recent Verifications Api V1 Verification Recent Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recent Verifications",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/api/v1/verification/website": {
+      "post": {
+        "operationId": "verify_owner_website_api_v1_verification_website_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnerVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Owner Website",
+        "tags": [
+          "sources"
         ]
       }
     },

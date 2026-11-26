@@ -111,11 +111,8 @@ def test_production_rejects_debug_logging(monkeypatch: pytest.MonkeyPatch) -> No
         load_settings()
 
 
-@pytest.mark.parametrize("flag", ["EMAIL_SENDING_ENABLED", "GOOGLE_PLACES_API_ENABLED"])
-def test_unimplemented_capabilities_cannot_be_enabled(
-    monkeypatch: pytest.MonkeyPatch, flag: str
-) -> None:
-    monkeypatch.setenv(flag, "true")
+def test_email_sending_cannot_be_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("EMAIL_SENDING_ENABLED", "true")
     with pytest.raises(ConfigurationError, match="rejected"):
         load_settings()
 
@@ -211,3 +208,26 @@ def test_invalid_trusted_proxy_cidr_rejected(monkeypatch: pytest.MonkeyPatch) ->
 def test_sqlalchemy_url_selects_psycopg_driver() -> None:
     s = Settings(database_url="postgresql://u:p@db:5432/x")
     assert s.sqlalchemy_url == "postgresql+psycopg://u:p@db:5432/x"
+
+
+def test_places_disabled_by_default_and_enabled_needs_key_in_production(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert Settings().google_places_api_enabled is False
+    assert Settings().google_places_daily_request_cap == 0
+    _production_env(monkeypatch)
+    monkeypatch.setenv("GOOGLE_PLACES_API_ENABLED", "true")
+    with pytest.raises(ConfigurationError, match="GOOGLE_MAPS_API_KEY"):
+        load_settings()
+
+
+@pytest.mark.parametrize("raw", ["not json", "[1]", '{"sku": -1}', '{"sku": 1.5}', '{"sku": true}'])
+def test_invalid_sku_prices_rejected(monkeypatch: pytest.MonkeyPatch, raw: str) -> None:
+    monkeypatch.setenv("GOOGLE_PLACES_SKU_PRICES_MINOR_PER_1000", raw)
+    with pytest.raises(ConfigurationError):
+        load_settings()
+
+
+def test_sku_prices_parsed() -> None:
+    s = Settings(google_places_sku_prices_minor_per_1000='{"TEXT_SEARCH_PRO": 3200}')
+    assert s.places_sku_prices == {"TEXT_SEARCH_PRO": 3200}

@@ -73,9 +73,9 @@ test-integration: test-services-up ## Full API suite against real Postgres/Redis
 contracts: ## Regenerate packages/contracts/openapi.json from the API code
 	$(UV) run python -m webforge_api.cli openapi > packages/contracts/openapi.json
 
-e2e: ## Browser end-to-end auth test against `make dev` (needs an empty users table)
+e2e: ## Browser end-to-end console test against `make dev` (needs a fresh database)
 	npm --prefix tests/e2e ci --no-audit --no-fund
-	node tests/e2e/auth-flow.mjs
+	node tests/e2e/console-flow.mjs
 
 migrate: ## Apply database migrations in the running stack
 	docker compose run --rm migrate

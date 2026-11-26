@@ -1,7 +1,7 @@
 # Architecture Overview
 
 Target architecture is defined in [`docs/spec/02_SYSTEM_ARCHITECTURE.md`](../spec/02_SYSTEM_ARCHITECTURE.md).
-This page shows what exists **now** (through Phase 01) and what later phases add.
+This page shows what exists **now** (through Phase 02) and what later phases add.
 Schema: [`schema.md`](schema.md). Auth design: [`../security/authentication.md`](../security/authentication.md).
 
 ## Implemented
@@ -20,12 +20,14 @@ flowchart LR
   end
   api --> pg
   api --> rd
+  api -->|HTTPS, field-masked,<br/>budgeted| gp[(Google Places API)]
+  api -->|SafeFetcher: public IPs only| web[(Business websites)]
 ```
 
 | Component | Responsibility now |
 |---|---|
 | Dashboard | Login, MFA verify/enrol, forced password change, status, account security, users admin, activity log. Proxies `/api/v1/*` to the API on its own origin; refreshes expired access tokens in `proxy.ts`. |
-| API | Validated settings, structured redacted logs, health, `/api/v1/auth`, `/api/v1/users`, `/api/v1/activity`, RBAC, CSRF, rate limits, append-only activity log, owner bootstrap CLI. |
+| API | Validated settings, structured redacted logs, health, auth/users/activity, RBAC, CSRF, rate limits, append-only activity log, owner bootstrap CLI. Phase 02: source registry, Places connector (Place IDs only), usage/budgets, SSRF-safe website verification with field-level provenance. |
 | migrate | One-shot container that applies migrations before the API starts. |
 | PostgreSQL | Full schema (migration 0001); business tables staged for later phases. |
 | Redis | Login/MFA rate-limit counters (password auth, AOF). Queues arrive in Phase 03. |
@@ -46,7 +48,7 @@ flowchart LR
 
 ## Added by later phases
 
-Source adapters (02) → discovery workers and Celery queues (03) →
+Discovery workers and Celery queues (03) →
 isolated audit browser (04) → AI briefs (05) → design/render sandbox (06) → validation (07) →
 proposals and preview gateway (08) → compliant email (09) → full console (10) → Caddy, TLS,
 backups, monitoring on the VPS (11).

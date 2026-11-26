@@ -1,4 +1,4 @@
-# Database Schema (migration 0001)
+# Database Schema (migrations 0001–0002)
 
 PostgreSQL 18. UUID primary keys (`gen_random_uuid()`), `timestamptz` columns stored in UTC (naive
 datetimes are rejected by the ORM), enums stored as `VARCHAR` + `CHECK` (easy to migrate),
@@ -96,3 +96,14 @@ hash so it survives deletion of the personal data it protects. `assets` is stand
 Queue scans `jobs(queue, status, available_at)`, `jobs(status, created_at)`; dashboard
 `prospects(state, created_at)`, `prospects(country_code, state)`, `campaigns(status, created_at)`;
 dedupe `prospects(verified_domain)`; `activity_logs(occurred_at)` and `(entity_type, entity_id)`.
+
+## Phase 02 additions (migration 0002)
+
+| Table / change | Purpose |
+|---|---|
+| `source_registrations` | Source terms/permission registry: type, status, persistable fields, cache rules, attribution, policy URLs, terms review (URL, version, reviewer, time), status history. CHECK: non-mock sources cannot be ENABLED without a review. Seeded: `google_places`, `official_website`, `mock_places` (all DISABLED) |
+| `domain_verifications` | Evidence for website ownership checks: candidate URL and its origin, final URL, domain, status (VERIFIED/HOLD/REJECTED), reason codes, confidence, evidence JSON |
+| `transient_source_values` | Encrypted, expiring cache for third-party values permitted by `cache_rules` |
+| `external_place_identifiers` | `prospect_id` now nullable (candidates), plus `campaign_id`, `status` (ACTIVE/OBSOLETE), `first_seen_at` |
+| `prospect_sources` | `source_type` restricted to independent sources (CHECK), plus `source_key` (FK to registry), `confidence`, `verification_method` |
+| `api_usage` | `sku`, `outcome` (RESERVED/SUCCESS/ERROR), `cost_milliminor` |

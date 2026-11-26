@@ -18,7 +18,7 @@ from webforge_api.models import (
     UserSession,
     WebsiteAudit,
 )
-from webforge_api.models.enums import Role, SuppressionReason
+from webforge_api.models.enums import ProvenanceSource, Role, SuppressionReason
 from webforge_api.services.errors import ConflictError
 from webforge_api.services.retention import (
     delete_email_contact,
@@ -32,9 +32,10 @@ def _prospect_with_contact(harness: Harness, email: str) -> tuple[Prospect, Emai
         p = Prospect(business_name="Fixture Dental Clinic")
         db.add(p)
         db.flush()
-        db.add(ProspectSource(prospect_id=p.id, source_type="website", source_name="fixture",
-                              fact_field="business_name", safe_value="Fixture Dental Clinic",
-                              retrieved_at=datetime.now(UTC)))  # fmt: skip
+        db.add(ProspectSource(prospect_id=p.id, source_type=ProvenanceSource.OFFICIAL_WEBSITE,
+                              source_name="fixture", fact_field="business_name",
+                              safe_value="Fixture Dental Clinic", retrieved_at=datetime.now(UTC),
+                              confidence=0.9, verification_method="test"))  # fmt: skip
         c = EmailContact(
             prospect_id=p.id,
             email_encrypted=harness.crypto.encrypt_str(email, context="email_contacts.email"),

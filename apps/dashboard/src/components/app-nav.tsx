@@ -7,6 +7,7 @@ import { ROLE_LABEL, type Role } from "@/lib/auth-shared";
 
 const LINKS: { href: string; label: string; roles?: Role[] }[] = [
   { href: "/", label: "Status" },
+  { href: "/sources", label: "Sources", roles: ["OWNER", "ADMIN"] },
   { href: "/users", label: "Users", roles: ["OWNER", "ADMIN"] },
   { href: "/activity", label: "Activity", roles: ["OWNER", "ADMIN"] },
   { href: "/account", label: "Account" },

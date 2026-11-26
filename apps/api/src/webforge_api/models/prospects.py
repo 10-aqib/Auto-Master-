@@ -19,7 +19,13 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from webforge_api.db.base import Base, Timestamps, UTCDateTime, UUIDPrimaryKey, str_enum, utcnow
-from webforge_api.models.enums import ContactVerificationState, ProspectState, RecipientType
+from webforge_api.models.enums import (
+    ContactVerificationState,
+    PlaceIdStatus,
+    ProspectState,
+    ProvenanceSource,
+    RecipientType,
+)
 
 
 class Prospect(UUIDPrimaryKey, Timestamps, Base):
@@ -89,8 +95,14 @@ class ProspectSource(UUIDPrimaryKey, Base):
     prospect_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("prospects.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    source_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    # Restricted to independent sources: Maps content can never back a stored fact.
+    source_type: Mapped[ProvenanceSource] = mapped_column(
+        str_enum(ProvenanceSource, "provenance_source"), nullable=False
+    )
     source_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    source_key: Mapped[str | None] = mapped_column(
+        ForeignKey("source_registrations.key", ondelete="RESTRICT")
+    )
     source_url: Mapped[str | None] = mapped_column(String(2048))
     source_record_id: Mapped[str | None] = mapped_column(String(255))
     fact_field: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -99,6 +111,8 @@ class ProspectSource(UUIDPrimaryKey, Base):
     retrieved_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     observed_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
     terms_version: Mapped[str | None] = mapped_column(String(64))
+    confidence: Mapped[float] = mapped_column(Numeric(4, 3), nullable=False)
+    verification_method: Mapped[str] = mapped_column(String(64), nullable=False)
     is_independent: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("false"), nullable=False
     )
@@ -106,19 +120,37 @@ class ProspectSource(UUIDPrimaryKey, Base):
 
     __table_args__ = (
         CheckConstraint("safe_value IS NOT NULL OR value_hash IS NOT NULL", name="value_present"),
+        CheckConstraint("confidence >= 0 AND confidence <= 1", name="confidence_range"),
     )
 
 
 class ExternalPlaceIdentifier(UUIDPrimaryKey, Base):
-    """Provider Place ID only. Confirm current policy before adding any field."""
+    """Provider Place ID only (Google permits storing Place IDs indefinitely).
+
+    Confirm current policy before adding any field. No names, addresses, phones, ratings,
+    reviews, photos or website URLs from Maps are ever stored here.
+    """
 
     __tablename__ = "external_place_identifiers"
 
-    prospect_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("prospects.id", ondelete="CASCADE"), nullable=False, index=True
+    # Null while the place is only a candidate (not yet independently verified).
+    prospect_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("prospects.id", ondelete="CASCADE"), index=True
+    )
+    campaign_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="SET NULL"), index=True
     )
     provider: Mapped[str] = mapped_column(String(32), nullable=False)
     place_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[PlaceIdStatus] = mapped_column(
+        str_enum(PlaceIdStatus, "place_id_status"),
+        default=PlaceIdStatus.ACTIVE,
+        server_default=PlaceIdStatus.ACTIVE.value,
+        nullable=False,
+    )
+    first_seen_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), default=utcnow, server_default=func.now(), nullable=False
+    )
     last_checked_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
 
     __table_args__ = (UniqueConstraint("provider", "place_id"),)

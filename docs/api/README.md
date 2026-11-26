@@ -36,6 +36,16 @@ in non-production environments only.
 | POST | `/users/{id}/revoke-sessions` | OWNER, ADMIN | Within the roles they manage |
 | POST | `/users/{id}/reset-mfa` | OWNER | For a lost authenticator |
 | GET | `/activity` | OWNER, ADMIN | Cursor pagination (`limit`, `cursor`, `action`) |
+| GET | `/sources` | OWNER, ADMIN | Registry with blockers and usage |
+| POST | `/sources/{key}/review` | OWNER | Record terms review (https URL, version, notes) |
+| POST | `/sources/{key}/enable` | OWNER | Requires a terms review (except mock, which is blocked in production) |
+| POST | `/sources/{key}/disable` | OWNER, ADMIN | Always allowed |
+| GET | `/usage/{provider}` | OWNER, ADMIN | Today/month usage, budget ratios, daily series |
+| POST | `/places/search` | OWNER, ADMIN | Transient results + attribution; stores Place IDs only |
+| GET | `/places/identifiers` | OWNER, ADMIN | Stored Place IDs |
+| POST | `/places/identifiers/{id}/verify-website` | OWNER, ADMIN | Place Details (Enterprise SKU) → official-website check |
+| POST | `/verification/website` | OWNER, ADMIN | Check an owner-supplied URL + expected name |
+| GET | `/verification/recent` | OWNER, ADMIN | Recent website checks |
 | GET | `/health/live`, `/health/ready` | anyone | Liveness / dependency readiness |
 
 ## Session states

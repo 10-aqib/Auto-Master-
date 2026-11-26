@@ -1,5 +1,5 @@
-// End-to-end browser test of the Phase 01 auth flow against a running local stack.
-// Usage: node tests/e2e/auth-flow.mjs   (requires `make dev`, an EMPTY users table, and Playwright)
+// End-to-end browser test of the owner console (auth, users, data sources) on a running stack.
+// Usage: node tests/e2e/console-flow.mjs   (requires `make dev`, an EMPTY users table, and Playwright)
 // Uses fake test identities only. Screenshots go to $E2E_SCREENSHOT_DIR when set.
 import { execFileSync } from "node:child_process";
 import { createHmac } from "node:crypto";
@@ -182,8 +182,79 @@ try {
     if (r.status() !== 401) throw new Error(`expected 401, got ${r.status()}`);
   });
 
+  await check("sources start disabled; Google Places explains its blockers", async () => {
+    await page.getByRole("link", { name: "Sources" }).click();
+    await expectUrl(page, "/sources");
+    await page.getByText("Disabled").first().waitFor();
+    await page.getByText("GOOGLE_PLACES_API_ENABLED is false.").waitFor();
+    const enableWebsite = page
+      .locator("section", { hasText: "Business-owned official websites" })
+      .getByRole("button", { name: "Enable" });
+    if (!(await enableWebsite.isDisabled())) throw new Error("enable allowed without terms review");
+    await shot(page, "09-sources");
+  });
+
+  await check("owner enables mock places and searches with attribution", async () => {
+    const mock = page.locator("section", { hasText: "Mock places (development and tests only)" });
+    await mock.getByRole("button", { name: "Enable" }).click();
+    await mock.getByLabel("Reason to enable").fill("End-to-end test run");
+    await mock.getByRole("button", { name: "Enable source" }).click();
+    await mock.getByText("Usable").waitFor();
+    await page.getByRole("link", { name: "Places discovery →" }).click();
+    await expectUrl(page, "/sources/places");
+    await page.getByLabel("Search").fill("dental clinics in Lahore");
+    await page.getByLabel("Results (1–20)").fill("3");
+    await page.getByRole("button", { name: "Search" }).click();
+    await page.getByRole("heading", { name: "3 results" }).waitFor();
+    const attribution = (await page.getByTestId("attribution").innerText()).trim();
+    if (attribution !== "Mock data - not Google Maps") throw new Error(`attribution: ${attribution}`);
+    await page.getByText("Saved: 3 Place IDs (3 new)").waitFor();
+    const verify = page.getByRole("button", { name: "Verify website" }).first();
+    if (!(await verify.isDisabled())) throw new Error("verify enabled before website source");
+    await shot(page, "10-places-search");
+  });
+
+  await check("owner records a terms review and enables website verification", async () => {
+    await page.getByRole("link", { name: "← Sources" }).click();
+    const site = page.locator("section", { hasText: "Business-owned official websites" });
+    await site.getByRole("button", { name: "Record terms review" }).click();
+    await site.getByLabel("Terms URL (https)").fill("https://example.test/website-verification-policy");
+    await site.getByLabel("Version or date reviewed").fill("2026-11-26");
+    await site
+      .getByLabel("What you checked and decided")
+      .fill("Public pages only, robots.txt respected, no forms or logins. E2E fixture review.");
+    await site.getByRole("button", { name: "Save review" }).click();
+    await site.getByText("2026-11-26 ·").waitFor();
+    await site.getByRole("button", { name: "Enable" }).click();
+    await site.getByLabel("Reason to enable").fill("End-to-end test run");
+    await site.getByRole("button", { name: "Enable source" }).click();
+    await site.getByText("Usable").waitFor();
+  });
+
+  await check("verifying an unreachable fixture site holds it and stores nothing else", async () => {
+    await page.getByRole("link", { name: "Places discovery →" }).click();
+    await page.getByLabel("Search").fill("dental clinics in Lahore");
+    await page.getByLabel("Results (1–20)").fill("3");
+    await page.getByRole("button", { name: "Search" }).click();
+    await page.getByText("Saved: 3 Place IDs (0 new)").waitFor();
+    await page.getByRole("button", { name: "Verify website" }).first().click();
+    await page.getByText("On hold — needs review").waitFor({ timeout: 40_000 });
+    await shot(page, "11-verification-hold");
+    await page.reload();
+    await page.getByRole("cell", { name: "mock_places" }).first().waitFor();
+    await page.getByText("HOLD").first().waitFor();
+    await page.getByText("The website could not be reached.").first().waitFor();
+  });
+
+  await check("activity log records source governance", async () => {
+    await page.getByRole("link", { name: "Activity" }).click();
+    for (const action of ["source.enabled", "source.terms_reviewed", "places.search", "website.verification"]) {
+      await page.getByRole("cell", { name: action, exact: true }).first().waitFor();
+    }
+  });
+
   await check("no browser console errors", async () => {
-    const real = errors.filter((e) => !/401|403|Failed to load resource/.test(e));
+    const real = errors.filter((e) => !/401|403|409|Failed to load resource/.test(e));
     if (real.length) throw new Error(real.join(" | "));
   });
 } finally {

@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime
 
+import httpx
 import redis
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,8 +20,10 @@ from webforge_api.db.base import utcnow
 from webforge_api.db.session import build_engine, build_sessionmaker
 from webforge_api.logging_config import configure_logging, get_logger
 from webforge_api.middleware import RequestContextMiddleware
+from webforge_api.net.safe_fetch import FetchPolicy
 from webforge_api.security.crypto import Crypto
 from webforge_api.security.rate_limit import RateLimiter, RedisRateLimiter
+from webforge_api.sources.places import ConnectorFactory
 
 log = get_logger(__name__)
 
@@ -30,6 +33,8 @@ def create_app(
     *,
     rate_limiter: RateLimiter | None = None,
     clock: Callable[[], datetime] = utcnow,
+    places_transport: httpx.BaseTransport | None = None,
+    fetch_policy: FetchPolicy | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level.value, json_output=settings.app_env is not AppEnv.TEST)
@@ -47,6 +52,7 @@ def create_app(
             email_sending_enabled=settings.email_sending_enabled,
         )
         yield
+        app.state.connectors.close()
         engine.dispose()
         log.info("api_stopping")
 
@@ -64,6 +70,16 @@ def create_app(
     app.state.engine = engine
     app.state.sessionmaker = build_sessionmaker(engine)
     app.state.clock = clock
+    # Test hooks: an httpx transport for the Places API and a fetch policy for website checks.
+    app.state.connectors = ConnectorFactory(
+        settings.google_maps_api_key.get_secret_value(), transport=places_transport
+    )
+    app.state.fetch_policy = fetch_policy or FetchPolicy(
+        max_bytes=settings.browser_max_response_bytes,
+        read_timeout=float(settings.browser_page_timeout_seconds),
+        total_timeout=float(settings.browser_page_timeout_seconds),
+        user_agent=settings.website_fetch_user_agent,
+    )
     app.state.rate_limiter = rate_limiter or RedisRateLimiter(
         redis.Redis.from_url(
             settings.redis_url.get_secret_value(), socket_timeout=2, socket_connect_timeout=2

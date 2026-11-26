@@ -20,6 +20,7 @@ from webforge_api.models.prospects import (
     ProspectCampaign,
     ProspectSource,
 )
+from webforge_api.models.sources import DomainVerification, SourceRegistration, TransientSourceValue
 
 __all__ = [
     "ActivityLog",
@@ -31,6 +32,7 @@ __all__ = [
     "ConsentRecord",
     "DesignPage",
     "DesignProject",
+    "DomainVerification",
     "EmailContact",
     "EmailEvent",
     "ExternalPlaceIdentifier",
@@ -44,7 +46,9 @@ __all__ = [
     "ProspectCampaign",
     "ProspectSource",
     "Reply",
+    "SourceRegistration",
     "Suppression",
+    "TransientSourceValue",
     "User",
     "UserSession",
     "WebsiteAudit",

@@ -9,7 +9,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from webforge_api.db.base import Base, Timestamps, UTCDateTime, UUIDPrimaryKey, str_enum, utcnow
-from webforge_api.models.enums import JobStatus
+from webforge_api.models.enums import JobStatus, UsageOutcome
 
 
 class Job(UUIDPrimaryKey, Timestamps, Base):
@@ -66,6 +66,17 @@ class ApiUsage(UUIDPrimaryKey, Base):
         BigInteger, default=0, server_default="0", nullable=False
     )
     output_tokens: Mapped[int] = mapped_column(
+        BigInteger, default=0, server_default="0", nullable=False
+    )
+    sku: Mapped[str | None] = mapped_column(String(64))
+    outcome: Mapped[UsageOutcome] = mapped_column(
+        str_enum(UsageOutcome, "usage_outcome"),
+        default=UsageOutcome.SUCCESS,
+        server_default=UsageOutcome.SUCCESS.value,
+        nullable=False,
+    )
+    # Cost in thousandths of a minor unit (precise for per-1000 pricing).
+    cost_milliminor: Mapped[int] = mapped_column(
         BigInteger, default=0, server_default="0", nullable=False
     )
     estimated_cost_minor: Mapped[int] = mapped_column(

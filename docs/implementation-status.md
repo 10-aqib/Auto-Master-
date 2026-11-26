@@ -3,8 +3,8 @@
 | Phase | Name | Status | Email |
 |---|---|---|---|
 | 00 | Foundation | Complete | Disabled (rejected by config) |
-| 01 | Database + auth | **Complete — awaiting owner review** | Disabled (rejected by config) |
-| 02 | Source adapters | Not started | Disabled |
+| 01 | Database + auth | Complete | Disabled (rejected by config) |
+| 02 | Source adapters | **Complete — awaiting owner review** | Disabled (rejected by config) |
 | 03 | Discovery | Not started | Disabled |
 | 04 | Website audit | Not started | Disabled |
 | 05 | AI intelligence | Not started | Disabled |
@@ -14,6 +14,74 @@
 | 09 | Email/compliance | Not started | Sandbox only |
 | 10 | Dashboard/orchestration | Not started | Paused |
 | 11 | Production | Not started | Only approved category |
+
+## Phase 02 — Source adapters and data governance (2026-11-26)
+
+### Delivered
+- **Policy re-check** of Google Places API (New) docs on 2026-11-26, recorded with URLs and open legal questions in
+  `docs/compliance/source-policies.md` (Service Specific Terms page could not be read automatically: owner must read it).
+- **Source terms/permission registry** (`source_registrations`, migration 0002): `google_places`, `official_website`,
+  `mock_places`, all DISABLED by default. Enabling needs an owner terms review (DB CHECK + service rule). Mock is
+  blocked in production.
+- **Places connector** (Text Search + Place Details, New API) with fixed minimal field masks, no wildcard, SKU derived
+  from the highest field tier, key only in a server-side header.
+- **Place IDs only** are persisted (`external_place_identifiers`); all other Maps content is returned transiently and
+  shown with "Google Maps" attribution (self-hosted Roboto, `translate="no"`, no wrap) and a link to `googleMapsUri`.
+- **Independent verification**: SSRF-safe fetcher (DNS pinned, public IPs only, redirects re-validated, size/time
+  limits, TLS verified) and an official-website verifier (robots.txt, parked/off-site/structured-data checks, name
+  matching). Prospects are created only from VERIFIED checks, named with the site's own text, with field-level
+  provenance (source URL, time, terms version, confidence, method). Domains are never guessed.
+- **Provenance rules**: only independent sources can back a stored fact (service rule + DB CHECK).
+- **Cost accounting and budgets**: per-SKU owner-configured prices (unpriced = refused), daily budget, daily request cap,
+  per-campaign cap, per-minute rate limit, reservation under an advisory lock, SUCCESS/ERROR outcome, 80% warning.
+- **Transient cache** limited to registry `cache_rules` (Places: `location` ≤ 30 days), encrypted, with purge.
+- **Maintenance CLI**: `refresh-place-ids` (IDs-only, marks obsolete), `purge-transient`.
+- **Mocks for CI**: `MockPlacesConnector` and an httpx mock transport for the real connector; CI makes no external calls.
+- **Dashboard**: Sources page (registry, review, enable/disable, blockers, budget meters, owner URL check) and Places
+  discovery (search, attribution, verify website, stored IDs, recent checks).
+- **Docs**: source policies, SSRF defences, ADR 0003, schema/API/migration/version updates, `.env.example`.
+
+### Verification evidence (local run, 2026-11-26)
+
+| Check | Command | Result |
+|---|---|---|
+| Lint / format | `make lint` | PASS |
+| Types | `make typecheck` (mypy strict, 89 files; tsc) | PASS — 0 issues |
+| API tests (real PostgreSQL + Redis) | `make test-integration` | PASS — 321 passed, 0 skipped |
+| Dashboard tests | `npm test` | PASS — 43 passed (6 files) |
+| API tests without a database | `make test` | 184 passed, 137 **skipped** (reported) |
+| Dashboard build | `npm run build` | PASS |
+| Migrations | upgrade/downgrade 0002↔0001↔base round trip; models = migrations | PASS |
+| Compose | `docker compose up --build --wait` | PASS — migrate exited 0, 4 services healthy |
+| Smoke | `make smoke` | PASS — 14/14 |
+| Browser E2E | `make e2e` | PASS — 20/20 (5 new Phase 02 steps) |
+| No Maps-style content persisted | scan of all 30 tables after E2E search + verify | 0 matches |
+| API error log lines | grep | 0 |
+| Real Google Places call | — | **NOT RUN**: no key or approved budget (by design; mock transport used) |
+| CI | GitHub Actions | NOT RUN here — runs on push |
+
+Required Phase 02 tests: field mask required/no wildcard ✔, Place ID persistence ✔, restricted fields not persisted
+(whole-database scan) ✔, provenance required ✔, budget/rate limits ✔, key not in frontend/logs/responses ✔,
+connectors disabled by default ✔. Plus 55 SSRF/fetcher tests and 21 verifier tests.
+
+### Known issues / notes
+- Open legal questions (transient use of `websiteUri`/`displayName` for verification; retention for unverified
+  candidate IDs; overall use-case fit) are listed in `docs/compliance/source-policies.md`.
+- Website verification runs in the API process for now (homepage + robots.txt only); moves to a queued worker in
+  Phase 03 and to an isolated network in Phase 04.
+- Minimal dedupe only (reuse a prospect with the same verified domain); full dedupe/branches in Phase 03.
+- `make e2e` needs a fresh database (it bootstraps the owner).
+
+### Owner actions before using Google Places for real
+1. Read the Service Specific Terms and confirm the use case (see open questions).
+2. Create a restricted API key (Places API (New) only, server IP), set budgets/alerts in Google Cloud.
+3. Fill `GOOGLE_MAPS_API_KEY`, `GOOGLE_PLACES_SKU_PRICES_MINOR_PER_1000` (current prices), daily budget, caps,
+   then `GOOGLE_PLACES_API_ENABLED=true`.
+4. Record the terms review in Sources and enable the source.
+
+### Next phase
+Phase 03 — Discovery, campaigns, dedupe, qualification and jobs (`docs/spec/PHASE_PROMPTS/PHASE_03_DISCOVERY.md`).
+Requires owner approval to start.
 
 ## Phase 01 — Database, migrations and secure authentication (2026-11-26)
 

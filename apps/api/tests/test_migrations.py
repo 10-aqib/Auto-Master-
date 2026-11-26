@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 
 import webforge_api.models  # noqa: F401
 from webforge_api.db.base import Base
-from webforge_api.db.migrate import downgrade, upgrade
+from webforge_api.db.migrate import alembic_config, downgrade, upgrade
+
+HEAD = ScriptDirectory.from_config(alembic_config()).get_current_head()
 
 EXPECTED_TABLES = {
     "users", "user_sessions", "mfa_recovery_codes", "activity_logs", "campaigns", "prospects",
@@ -16,6 +19,7 @@ EXPECTED_TABLES = {
     "website_audits", "audit_findings", "design_projects", "design_pages", "assets", "proposals",
     "preview_deployments", "compliance_assessments", "consent_records", "suppressions",
     "outreach_messages", "email_events", "replies", "jobs", "api_usage", "policy_configs",
+    "source_registrations", "domain_verifications", "transient_source_values",
 }  # fmt: skip
 
 
@@ -26,7 +30,7 @@ def test_upgrade_from_empty_database(empty_db_url: str) -> None:
         tables = set(inspect(engine).get_table_names())
         assert tables >= EXPECTED_TABLES
         with engine.connect() as conn:
-            assert conn.scalar(text("SELECT version_num FROM alembic_version")) == "0001"
+            assert conn.scalar(text("SELECT version_num FROM alembic_version")) == HEAD
     finally:
         engine.dispose()
 
@@ -58,3 +62,15 @@ def test_models_match_migrations(db_url: str) -> None:
     finally:
         engine.dispose()
     assert diff == [], f"Models and migrations differ; add a migration: {diff}"
+
+
+def test_each_revision_downgrades_one_step(empty_db_url: str) -> None:
+    upgrade(empty_db_url)
+    downgrade(empty_db_url, "0001")
+    upgrade(empty_db_url)
+    engine = create_engine(empty_db_url)
+    try:
+        with engine.connect() as conn:
+            assert conn.scalar(text("SELECT count(*) FROM source_registrations")) == 3
+    finally:
+        engine.dispose()

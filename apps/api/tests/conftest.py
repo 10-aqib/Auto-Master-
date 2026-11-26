@@ -222,10 +222,10 @@ def harness(db_url: str) -> Iterator[Harness]:
     yield from _harness(settings)
 
 
-def _harness(settings: Settings) -> Iterator[Harness]:
+def _harness(settings: Settings, **app_kwargs: Any) -> Iterator[Harness]:
     clock = FakeClock()
     limiter = MemoryRateLimiter()
-    app = create_app(settings, rate_limiter=limiter, clock=clock)
+    app = create_app(settings, rate_limiter=limiter, clock=clock, **app_kwargs)
     engine = build_engine(settings)
     with TestClient(app) as client:
         yield Harness(
@@ -245,8 +245,8 @@ def harness_factory(db_url: str) -> Iterator[Any]:
     """Build a harness with custom settings overrides."""
     stack: list[Iterator[Harness]] = []
 
-    def build(**overrides: Any) -> Harness:
-        gen = _harness(make_settings(database_url=db_url, **overrides))
+    def build(app_kwargs: dict[str, Any] | None = None, **overrides: Any) -> Harness:
+        gen = _harness(make_settings(database_url=db_url, **overrides), **(app_kwargs or {}))
         stack.append(gen)
         return next(gen)
 
