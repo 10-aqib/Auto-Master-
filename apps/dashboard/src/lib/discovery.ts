@@ -140,3 +140,50 @@ export const COMPONENT_LABEL: Record<string, string> = {
 export function stateLabel(state: string): string {
   return state.toLowerCase().replaceAll("_", " ");
 }
+
+export interface AuditFinding {
+  id: string;
+  category: string;
+  severity: string;
+  code: string;
+  description: string;
+  evidence_url: string | null;
+  evidence_text: string | null;
+  viewport: string | null;
+  confidence: number | null;
+  observed_at: string;
+  reproduction_steps: string | null;
+}
+
+export interface Audit {
+  id: string;
+  prospect_id: string;
+  url: string;
+  status: string;
+  audit_version: string;
+  started_at: string | null;
+  finished_at: string | null;
+  desktop_screenshot_key: string | null;
+  mobile_screenshot_key: string | null;
+  browser_version: string | null;
+  performance_source: string | null;
+  scores: {
+    overall?: number | null;
+    categories?: Record<string, { weight: number; score: number | null; status: string }>;
+    strengths?: string[];
+    caveats?: string[];
+    pages_checked?: number;
+  };
+  error_summary: string | null;
+  created_at: string;
+}
+
+export const CATEGORY_LABEL: Record<string, string> = {
+  visual_structure: "Visual structure",
+  mobile_usability: "Mobile usability",
+  navigation: "Navigation",
+  branding: "Branding",
+  conversion: "Conversion path",
+  content_trust: "Content & trust",
+  technical: "Technical & accessibility",
+};

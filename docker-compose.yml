@@ -70,10 +70,77 @@ services:
     cap_drop: [ALL]
     ports:
       - "127.0.0.1:8000:8000"
+    volumes:
+      - artifacts:/data/artifacts
     networks: [backend, frontend]
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
+
+  # Website audits: talks to the browser sandbox; stores evidence in the artifacts volume.
+  worker-audit:
+    <<: *hardening
+    build:
+      context: apps/api
+      dockerfile: ../../infrastructure/docker/api.Dockerfile
+    image: webforge/api:dev
+    command: ["python", "-m", "webforge_api.worker", "--queues", "audit"]
+    env_file: [.env]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    volumes:
+      - artifacts:/data/artifacts
+    networks: [backend, sandbox]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,time; sys.exit(0 if time.time()-os.path.getmtime('/tmp/worker-heartbeat') < 60 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      browser: { condition: service_healthy }
+
+  # Isolated browser: internal network only, no secrets, no env_file, egress via the proxy.
+  browser:
+    <<: *hardening
+    build:
+      context: apps/browser
+      dockerfile: ../../infrastructure/docker/browser.Dockerfile
+    image: webforge/browser:dev
+    environment:
+      EGRESS_PROXY_URL: http://egress-proxy:3128
+      HOME: /tmp
+    read_only: true
+    tmpfs: [/tmp]
+    shm_size: "256m"
+    cap_drop: [ALL]
+    mem_limit: 1536m
+    pids_limit: 512
+    cpus: 1.5
+    networks: [sandbox]
+    depends_on:
+      egress-proxy: { condition: service_healthy }
+
+  # The sandbox's only way out: refuses private, loopback, link-local and metadata targets.
+  egress-proxy:
+    <<: *hardening
+    build:
+      context: apps/api
+      dockerfile: ../../infrastructure/docker/api.Dockerfile
+    image: webforge/api:dev
+    command: ["python", "-m", "webforge_api.egress_proxy", "--port", "3128"]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    mem_limit: 256m
+    networks: [sandbox, egress]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 3128), 2).close()"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   # Background jobs: discovery, website verification, qualification.
   worker:
@@ -121,6 +188,10 @@ services:
 networks:
   backend:
     internal: true
+  # Browser sandbox network: no internet route and no database/Redis. Egress only via the proxy.
+  sandbox:
+    internal: true
+  egress: {}
   # Fixed subnet so the API can trust the dashboard proxy (TRUSTED_PROXY_CIDRS).
   frontend:
     ipam:
@@ -130,3 +201,4 @@ networks:
 volumes:
   pgdata:
   redisdata:
+  artifacts:

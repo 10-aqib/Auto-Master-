@@ -5,7 +5,7 @@ import { Badge } from "@/components/badge";
 import { ProspectReview } from "@/components/prospect-review";
 import { Alert, Card, formatDate } from "@/components/ui";
 import { apiServer, requireActiveSession } from "@/lib/api-server";
-import { COMPONENT_LABEL, type ProspectDetail } from "@/lib/discovery";
+import { COMPONENT_LABEL, type Audit, type ProspectDetail } from "@/lib/discovery";
 import { reasonText } from "@/lib/sources";
 
 export const metadata = { title: "Prospect · WEBFORGE AI" };
@@ -13,7 +13,10 @@ export const metadata = { title: "Prospect · WEBFORGE AI" };
 export default async function ProspectPage({ params }: PageProps<"/prospects/[id]">) {
   const { id } = await params;
   const { user } = await requireActiveSession();
-  const detail = await apiServer<ProspectDetail>(`/prospects/${id}`);
+  const [detail, audits] = await Promise.all([
+    apiServer<ProspectDetail>(`/prospects/${id}`),
+    apiServer<Audit[]>(`/audits?prospect_id=${id}`),
+  ]);
   if (!detail.ok) return <Alert>{detail.error.message}</Alert>;
   const { prospect: p, facts, verifications, place_ids, campaigns, qualifications, merges } = detail.data;
   const latest = qualifications[0];
@@ -85,6 +88,36 @@ export default async function ProspectPage({ params }: PageProps<"/prospects/[id
           </div>
         ) : (
           <p className="text-sm text-muted">Not scored yet.</p>
+        )}
+      </Card>
+
+      <Card
+        title="Website audits"
+        actions={
+          canAdmin && p.website_url ? (
+            <ActionButton path={`/prospects/${p.id}/audit`} label="Run audit" />
+          ) : undefined
+        }
+      >
+        {audits.ok && audits.data.length ? (
+          <ul className="grid gap-2 text-sm">
+            {audits.data.map((a) => (
+              <li key={a.id} className="flex flex-wrap items-center gap-2">
+                <Badge value={a.status} />
+                <Link href={`/audits/${a.id}`} className="text-accent hover:underline">
+                  {formatDate(a.finished_at ?? a.created_at)}
+                </Link>
+                {a.scores.overall != null && (
+                  <span className="text-muted">overall {a.scores.overall}/100</span>
+                )}
+                {a.error_summary && <span className="text-muted">{a.error_summary}</span>}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted">
+            Not audited yet. Audits run in an isolated browser and never submit forms.
+          </p>
         )}
       </Card>
 

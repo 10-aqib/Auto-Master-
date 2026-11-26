@@ -12,7 +12,8 @@ COPY src ./src
 RUN uv sync --frozen --no-dev --no-editable
 
 FROM python:3.13.18-slim-trixie AS runtime
-RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin app
+RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin app \
+    && mkdir -p /data/artifacts && chown 10001:10001 /data/artifacts && chmod 750 /data/artifacts
 COPY --from=build /opt/venv /opt/venv
 ENV PATH=/opt/venv/bin:$PATH PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app

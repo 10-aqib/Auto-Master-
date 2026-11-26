@@ -72,10 +72,29 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  browser:
+    name: Browser sandbox (lint, types, tests)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: apps/browser
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: "0.11.32"
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - run: uv run playwright install --with-deps chromium
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run mypy
+      - run: PLAYWRIGHT_BROWSERS_PATH= uv run pytest
+
   stack:
     name: Docker stack smoke test
     runs-on: ubuntu-24.04
-    needs: [api, dashboard]
+    needs: [api, dashboard, browser]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Create CI-only .env with random throwaway secrets
@@ -83,6 +102,7 @@ jobs:
       - run: docker compose config --quiet
       - run: docker compose up -d --build --wait --wait-timeout 240
       - run: infrastructure/scripts/smoke.sh
+      - run: infrastructure/scripts/isolation-check.sh
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: "22.23.5"

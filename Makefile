@@ -11,7 +11,7 @@ TEST_DB_URL := postgresql://webforge:webforge-test-only@127.0.0.1:55432/webforge
 TEST_REDIS_URL := redis://127.0.0.1:56379/0
 TEST_COMPOSE := docker compose -f infrastructure/docker/compose.test.yml
 
-.PHONY: help env install dev up down logs ps smoke lint format typecheck test test-integration test-services-up test-services-down build compose-config migrate owner contracts e2e clean
+.PHONY: help env install dev up down logs ps smoke isolation lint format typecheck test test-integration test-services-up test-services-down build compose-config migrate owner contracts e2e clean
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS=":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -21,6 +21,7 @@ env: ## Create .env with fresh random secrets (never overwrites)
 
 install: ## Install API and dashboard dependencies from lockfiles
 	$(UV) sync --frozen
+	uv --directory apps/browser sync --frozen
 	$(NPM) ci --no-audit --no-fund
 
 dev: ## Build and start the local Docker stack (waits for healthchecks)
@@ -41,9 +42,14 @@ ps: ## Show service status
 smoke: ## Smoke-test the running stack (health, readiness, ports)
 	infrastructure/scripts/smoke.sh
 
-lint: ## Lint and format-check API and dashboard
+isolation: ## Prove the browser sandbox cannot reach internal services (run against make dev)
+	infrastructure/scripts/isolation-check.sh
+
+lint: ## Lint and format-check API, browser sandbox and dashboard
 	$(UV) run ruff format --check .
 	$(UV) run ruff check .
+	uv --directory apps/browser run ruff format --check .
+	uv --directory apps/browser run ruff check .
 	$(NPM) run lint
 	$(NPM) run format:check
 
@@ -54,6 +60,7 @@ format: ## Auto-format API and dashboard
 
 typecheck: ## Static type checks (mypy strict, tsc strict)
 	$(UV) run mypy
+	uv --directory apps/browser run mypy
 	$(NPM) run typecheck
 
 test: ## Fast tests (database tests are skipped without TEST_DATABASE_URL)
@@ -66,8 +73,9 @@ test-services-up: ## Start throwaway Postgres/Redis for integration tests
 test-services-down: ## Stop the throwaway test services
 	$(TEST_COMPOSE) down -v
 
-test-integration: test-services-up ## Full API suite against real Postgres/Redis, then dashboard tests
+test-integration: test-services-up ## Full API suite against real Postgres/Redis, browser sandbox and dashboard tests
 	TEST_DATABASE_URL=$(TEST_DB_URL) TEST_REDIS_URL=$(TEST_REDIS_URL) REQUIRE_DB_TESTS=1 $(UV) run pytest
+	uv --directory apps/browser run pytest
 	$(NPM) test
 
 contracts: ## Regenerate packages/contracts/openapi.json from the API code
