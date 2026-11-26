@@ -1,0 +1,270 @@
+"""Validated application settings.
+
+All configuration is read from environment variables (or a local, Git-ignored `.env`).
+Validation runs at startup. In production any missing, placeholder or weak secret
+fails fast. Risky capabilities that later phases implement (live email, Google Places)
+are rejected outright until the code that makes them safe exists.
+"""
+
+from __future__ import annotations
+
+import base64
+import binascii
+from enum import StrEnum
+from functools import lru_cache
+from typing import Annotated, Self
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+PLACEHOLDER_MARKERS = ("CHANGE_ME", "GENERATE_", "USE_SUPPORTED", "REPLACE_ME", "EXAMPLE")
+MIN_SECRET_LENGTH = 32
+
+NonNegativeInt = Annotated[int, Field(ge=0)]
+PositiveInt = Annotated[int, Field(gt=0)]
+
+
+class AppEnv(StrEnum):
+    DEVELOPMENT = "development"
+    TEST = "test"
+    PRODUCTION = "production"
+
+
+class LogLevel(StrEnum):
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+
+
+class EmailProvider(StrEnum):
+    MOCK = "mock"
+
+
+class AIProvider(StrEnum):
+    ANTHROPIC = "anthropic"
+
+
+class ConfigurationError(RuntimeError):
+    """Raised when settings are unsafe for the selected environment."""
+
+
+def _is_placeholder(value: str) -> bool:
+    upper = value.upper()
+    return any(marker in upper for marker in PLACEHOLDER_MARKERS)
+
+
+def _decode_key(value: str) -> bytes | None:
+    padded = value + "=" * (-len(value) % 4)
+    try:
+        return base64.urlsafe_b64decode(padded.encode())
+    except (binascii.Error, ValueError):
+        return None
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    # Application
+    app_env: AppEnv = AppEnv.DEVELOPMENT
+    app_name: str = "WEBFORGE_AI"
+    app_url: str = "http://localhost:3000"
+    api_url: str = "http://localhost:8000"
+    preview_base_url: str = "http://localhost:4000"
+    timezone: str = "Asia/Karachi"
+    log_level: LogLevel = LogLevel.INFO
+    cors_allowed_origins: str = "http://localhost:3000"
+
+    # Database / queue
+    database_url: SecretStr = SecretStr(
+        "postgresql+psycopg://webforge:CHANGE_ME@postgres:5432/webforge"
+    )
+    redis_url: SecretStr = SecretStr("redis://redis:6379/0")
+    celery_broker_url: SecretStr = SecretStr("redis://redis:6379/1")
+    celery_result_backend: SecretStr = SecretStr("redis://redis:6379/2")
+    readiness_timeout_seconds: Annotated[float, Field(gt=0, le=10)] = 2.0
+
+    # Auth / encryption
+    app_secret_key: SecretStr = SecretStr("")
+    jwt_signing_key: SecretStr = SecretStr("")
+    encryption_key: SecretStr = SecretStr("")
+    access_token_minutes: PositiveInt = 15
+    refresh_token_days: PositiveInt = 7
+    mfa_required_for_owner: bool = True
+
+    # AI
+    ai_provider: AIProvider = AIProvider.ANTHROPIC
+    anthropic_api_key: SecretStr = SecretStr("")
+    anthropic_model: str = ""
+    ai_max_input_tokens_per_job: NonNegativeInt = 0
+    ai_max_output_tokens_per_job: NonNegativeInt = 0
+    ai_daily_budget_minor: NonNegativeInt = 0
+
+    # Google Places
+    google_maps_api_key: SecretStr = SecretStr("")
+    google_places_api_enabled: bool = False
+    google_places_daily_budget_minor: NonNegativeInt = 0
+    google_places_max_requests_per_campaign: NonNegativeInt = 0
+
+    # Email
+    email_provider: EmailProvider = EmailProvider.MOCK
+    email_api_key: SecretStr = SecretStr("")
+    email_from_name: str = "Muhammad Aqib"
+    email_from_address: str = ""
+    email_reply_to: str = ""
+    email_sending_enabled: bool = False
+    email_daily_max: NonNegativeInt = 0
+    email_hourly_max: NonNegativeInt = 0
+    email_monthly_budget_minor: NonNegativeInt = 0
+    email_webhook_secret: SecretStr = SecretStr("")
+    email_inbound_signing_secret: SecretStr = SecretStr("")
+    email_provider_policy_approved: bool = False
+
+    # Storage
+    s3_endpoint: str = ""
+    s3_region: str = ""
+    s3_bucket: str = ""
+    s3_access_key: SecretStr = SecretStr("")
+    s3_secret_key: SecretStr = SecretStr("")
+    s3_force_path_style: bool = False
+    artifact_retention_days: PositiveInt = 90
+    preview_retention_days: PositiveInt = 30
+
+    # Limits / worker runtime
+    browser_max_pages: PositiveInt = 10
+    browser_max_depth: NonNegativeInt = 2
+    browser_page_timeout_seconds: PositiveInt = 30
+    browser_max_response_bytes: PositiveInt = 5_242_880
+    browser_job_timeout_seconds: PositiveInt = 300
+    discovery_worker_concurrency: PositiveInt = 2
+    audit_worker_concurrency: PositiveInt = 1
+    design_worker_concurrency: PositiveInt = 1
+    render_worker_concurrency: PositiveInt = 1
+    outreach_worker_concurrency: PositiveInt = 1
+    global_pause: bool = True
+    email_pause: bool = True
+
+    # Monitoring / backup
+    sentry_dsn: SecretStr = SecretStr("")
+    otel_exporter_otlp_endpoint: str = ""
+    backup_bucket: str = ""
+    backup_encryption_key_ref: str = ""
+    alert_email_to: str = ""
+
+    @field_validator("timezone")
+    @classmethod
+    def _valid_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError(f"unknown IANA timezone: {value!r}") from exc
+        return value
+
+    @field_validator("database_url")
+    @classmethod
+    def _postgres_url(cls, value: SecretStr) -> SecretStr:
+        if not value.get_secret_value().startswith(("postgresql://", "postgresql+psycopg://")):
+            raise ValueError("DATABASE_URL must be a postgresql:// or postgresql+psycopg:// URL")
+        return value
+
+    @field_validator("redis_url", "celery_broker_url", "celery_result_backend")
+    @classmethod
+    def _redis_url(cls, value: SecretStr) -> SecretStr:
+        if not value.get_secret_value().startswith(("redis://", "rediss://")):
+            raise ValueError("Redis URLs must use redis:// or rediss://")
+        return value
+
+    @model_validator(mode="after")
+    def _guard_unimplemented_capabilities(self) -> Self:
+        # Fail closed: these switches stay off until their phase implements the safeguards.
+        if self.email_sending_enabled:
+            raise ValueError(
+                "EMAIL_SENDING_ENABLED=true is rejected: compliant sending is not implemented "
+                "(Phase 09) and requires owner approval."
+            )
+        if self.google_places_api_enabled:
+            raise ValueError(
+                "GOOGLE_PLACES_API_ENABLED=true is rejected: the policy-safe Places connector "
+                "is not implemented (Phase 02)."
+            )
+        return self
+
+    @property
+    def is_production(self) -> bool:
+        return self.app_env is AppEnv.PRODUCTION
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [o.strip() for o in self.cors_allowed_origins.split(",") if o.strip()]
+
+    @property
+    def psycopg_conninfo(self) -> str:
+        """DATABASE_URL in the libpq form psycopg expects (no SQLAlchemy driver suffix)."""
+        return self.database_url.get_secret_value().replace(
+            "postgresql+psycopg://", "postgresql://", 1
+        )
+
+    def production_problems(self) -> list[str]:
+        """Return reasons these settings are unsafe for production (empty when safe)."""
+        problems: list[str] = []
+        secrets = {
+            "APP_SECRET_KEY": self.app_secret_key.get_secret_value(),
+            "JWT_SIGNING_KEY": self.jwt_signing_key.get_secret_value(),
+            "ENCRYPTION_KEY": self.encryption_key.get_secret_value(),
+        }
+        for name, value in secrets.items():
+            if not value:
+                problems.append(f"{name} is required")
+            elif _is_placeholder(value):
+                problems.append(f"{name} still holds a placeholder value")
+            elif name != "ENCRYPTION_KEY" and len(value) < MIN_SECRET_LENGTH:
+                problems.append(f"{name} must be at least {MIN_SECRET_LENGTH} characters")
+
+        enc = secrets["ENCRYPTION_KEY"]
+        if enc and not _is_placeholder(enc):
+            decoded = _decode_key(enc)
+            if decoded is None or len(decoded) != 32:
+                problems.append("ENCRYPTION_KEY must be 32 random bytes, URL-safe base64 encoded")
+
+        filled = [v for v in secrets.values() if v]
+        if len(set(filled)) != len(filled):
+            problems.append("APP_SECRET_KEY, JWT_SIGNING_KEY and ENCRYPTION_KEY must all differ")
+
+        urls = {
+            "DATABASE_URL": self.database_url,
+            "REDIS_URL": self.redis_url,
+            "CELERY_BROKER_URL": self.celery_broker_url,
+            "CELERY_RESULT_BACKEND": self.celery_result_backend,
+        }
+        for name, url in urls.items():
+            if _is_placeholder(url.get_secret_value()):
+                problems.append(f"{name} still holds a placeholder password")
+        if self.log_level is LogLevel.DEBUG:
+            problems.append("LOG_LEVEL=DEBUG is not allowed in production")
+        if not self.app_url.startswith("https://") or not self.api_url.startswith("https://"):
+            problems.append("APP_URL and API_URL must use https:// in production")
+        return problems
+
+
+def load_settings() -> Settings:
+    """Build settings and enforce production requirements. Raises ConfigurationError."""
+    try:
+        settings = Settings()
+    except ValueError as exc:  # pydantic ValidationError subclasses ValueError
+        raise ConfigurationError(f"Invalid configuration: {exc}") from exc
+    if settings.is_production:
+        problems = settings.production_problems()
+        if problems:
+            raise ConfigurationError("Refusing to start in production: " + "; ".join(problems))
+    return settings
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return load_settings()

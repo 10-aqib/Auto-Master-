@@ -1,0 +1,14 @@
+{
+  "finding_code": "MOBILE_HERO_OVERFLOW",
+  "category": "mobile_usability",
+  "severity": "MEDIUM",
+  "title": "Hero content overflows on narrow viewport",
+  "description": "At the tested 390px viewport, the hero content extends beyond the viewport width.",
+  "observed_url": "https://example.com/",
+  "observed_at": "2026-01-01T00:00:00Z",
+  "viewport": {"width": 390, "height": 844},
+  "evidence": {"screenshot_key": "TEST_ONLY", "console_message": null},
+  "confidence": 0.95,
+  "reproduction_steps": ["Open page at 390px viewport", "Observe horizontal overflow"],
+  "status": "OBSERVED"
+}

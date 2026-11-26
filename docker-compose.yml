@@ -1,0 +1,87 @@
+# Local development stack. PostgreSQL and Redis publish NO host ports and live on an
+# internal-only network. API and dashboard bind to 127.0.0.1 only.
+name: webforge
+
+x-hardening: &hardening
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+
+services:
+  postgres:
+    <<: *hardening
+    image: postgres:18.7-alpine3.24
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    <<: *hardening
+    image: redis:8.12.0-alpine3.23
+    environment:
+      # redis-cli reads REDISCLI_AUTH; the server takes the same value via the shell so the
+      # password does not appear in the Compose file or image.
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDISCLI_AUTH\""]
+    volumes:
+      - redisdata:/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    <<: *hardening
+    build:
+      context: apps/api
+      dockerfile: ../../infrastructure/docker/api.Dockerfile
+    image: webforge/api:dev
+    env_file: [.env]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    ports:
+      - "127.0.0.1:8000:8000"
+    networks: [backend, frontend]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  dashboard:
+    <<: *hardening
+    build:
+      context: apps/dashboard
+      dockerfile: ../../infrastructure/docker/dashboard.Dockerfile
+    image: webforge/dashboard:dev
+    environment:
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:8000}
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache:uid=1000,gid=1000
+    cap_drop: [ALL]
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks: [frontend]
+    depends_on:
+      api: { condition: service_healthy }
+
+networks:
+  backend:
+    internal: true
+  frontend: {}
+
+volumes:
+  pgdata:
+  redisdata:

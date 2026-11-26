@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "business": {
+    "verified_name": "EXAMPLE BUSINESS (TEST DATA ONLY)",
+    "industry": "professional_services",
+    "country_code": "XX",
+    "verified_facts": [],
+    "unknowns": []
+  },
+  "audit": {
+    "audit_id": "TEST_AUDIT_ID",
+    "observed_at": "2026-01-01T00:00:00Z",
+    "findings": []
+  },
+  "design_direction": {
+    "positioning": "Clear, credible and easy to navigate",
+    "visual_principles": ["strong hierarchy", "restrained palette", "mobile first"],
+    "colors": [],
+    "typography": [],
+    "asset_requirements": []
+  },
+  "pages": [
+    {"slug": "home", "title": "Home", "goal": "Explain verified offering", "sections": []},
+    {"slug": "services", "title": "Services", "goal": "Present verified offerings", "sections": []},
+    {"slug": "about", "title": "About", "goal": "Present verified business information", "sections": []},
+    {"slug": "process", "title": "How It Works", "goal": "Explain verified process", "sections": []},
+    {"slug": "inquiry", "title": "Make an Inquiry", "goal": "Non-submitting inquiry demo", "sections": []},
+    {"slug": "contact", "title": "Contact", "goal": "Show verified contact options", "sections": []}
+  ],
+  "content_integrity": {
+    "verified_fact_ids": [],
+    "proposed_copy_labels": [],
+    "assumptions_requiring_review": [],
+    "prohibited_claims": ["invented testimonials", "invented awards", "invented prices", "invented certifications"]
+  }
+}
