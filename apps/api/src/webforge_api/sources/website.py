@@ -17,12 +17,13 @@ from urllib.parse import urlsplit, urlunsplit
 from webforge_api.models.enums import DomainVerificationStatus
 from webforge_api.net.safe_fetch import FetchBlockedError, FetchFailedError, SafeFetcher
 from webforge_api.net.urls import InvalidUrlError, normalize_url, same_site, site_domain
+from webforge_api.sources.industries import SCHEMA_TYPE_INDUSTRY, industry_from_schema_types
 from webforge_api.sources.names import similarity, title_segments
 
 VERIFY_THRESHOLD = 0.85
 WEAK_THRESHOLD = 0.5
 METHOD = "official_website_name_match"
-ORG_TYPES = {
+ORG_TYPES = set(SCHEMA_TYPE_INDUSTRY) | {
     "organization", "localbusiness", "store", "restaurant", "corporation", "professionalservice",
     "medicalbusiness", "dentist", "legalservice", "homeandconstructionbusiness",
     "foodestablishment",
@@ -44,6 +45,7 @@ class PageSignals:
     h1: str | None = None
     jsonld_names: list[str] = field(default_factory=list)
     jsonld_urls: list[str] = field(default_factory=list)
+    jsonld_types: list[str] = field(default_factory=list)
     text_sample: str = ""
 
 
@@ -112,6 +114,7 @@ class _Extractor(HTMLParser):
                 types = item.get("@type", [])
                 types = [types] if isinstance(types, str) else types
                 if any(isinstance(t, str) and t.lower() in ORG_TYPES for t in types):
+                    self.signals.jsonld_types.extend(t for t in types if isinstance(t, str))
                     if isinstance(item.get("name"), str):
                         self.signals.jsonld_names.append(item["name"].strip()[:300])
                     if isinstance(item.get("url"), str):
@@ -147,6 +150,7 @@ class VerificationOutcome:
     domain: str | None = None
     confidence: float | None = None
     declared_name: str | None = None  # the site's own words; never Maps content
+    industry: str | None = None  # from the site's own schema.org type, when present
     evidence: dict[str, Any] = field(default_factory=dict)
 
 
@@ -267,6 +271,7 @@ class WebsiteVerifier:
                 url,
                 confidence=round(min(1.0, weight * best_score), 3),
                 declared_name=text,
+                industry=industry_from_schema_types(signals.jsonld_types),
                 evidence=evidence,
                 **base,
             )

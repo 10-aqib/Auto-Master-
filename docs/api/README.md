@@ -46,6 +46,15 @@ in non-production environments only.
 | POST | `/places/identifiers/{id}/verify-website` | OWNER, ADMIN | Place Details (Enterprise SKU) → official-website check |
 | POST | `/verification/website` | OWNER, ADMIN | Check an owner-supplied URL + expected name |
 | GET | `/verification/recent` | OWNER, ADMIN | Recent website checks |
+| GET/POST | `/campaigns`, `/campaigns/{id}` (GET/PUT) | read: all roles; write: OWNER, ADMIN | Validation errors per field; edits only in DRAFT/PAUSED |
+| POST | `/campaigns/{id}/activate|pause|resume|complete|archive` | OWNER, ADMIN | Activation requires all readiness checks |
+| POST | `/campaigns/{id}/discover` | OWNER, ADMIN | Queues one search per query per UTC day (idempotent); refused while paused |
+| GET | `/prospects`, `/prospects/{id}` | all roles | Filters, pagination, field-level evidence, qualification history |
+| POST | `/prospects/{id}/review` | OWNER, ADMIN, REVIEWER | approve / hold / reject / do_not_contact; reopen: OWNER/ADMIN (DNC: OWNER only) |
+| POST | `/prospects/{id}/qualify`, `/prospects/merge` | OWNER, ADMIN | Re-score; manual merge with history |
+| GET/POST | `/jobs`, `/jobs/{id}/retry|cancel` | OWNER, ADMIN | Dead-letter visibility and manual recovery |
+| GET/PUT | `/controls`, `/controls/{key}` | read: all; pause: OWNER/ADMIN; resume: OWNER | Durable pause switches |
+| GET | `/industries` | all roles | Industry vocabulary |
 | GET | `/health/live`, `/health/ready` | anyone | Liveness / dependency readiness |
 
 ## Session states

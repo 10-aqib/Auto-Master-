@@ -75,6 +75,29 @@ services:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
 
+  # Background jobs: discovery, website verification, qualification.
+  worker:
+    <<: *hardening
+    build:
+      context: apps/api
+      dockerfile: ../../infrastructure/docker/api.Dockerfile
+    image: webforge/api:dev
+    command: ["python", "-m", "webforge_api.worker", "--queues", "discovery,verification,qualification"]
+    env_file: [.env]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    networks: [backend, frontend]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,time; sys.exit(0 if time.time()-os.path.getmtime('/tmp/worker-heartbeat') < 60 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
   dashboard:
     <<: *hardening
     build:

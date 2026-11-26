@@ -10,7 +10,7 @@ from webforge_api.models.compliance import (
 )
 from webforge_api.models.designs import Asset, DesignPage, DesignProject
 from webforge_api.models.identity import ActivityLog, MfaRecoveryCode, User, UserSession
-from webforge_api.models.ops import ApiUsage, Job
+from webforge_api.models.ops import ApiUsage, Job, SystemControl
 from webforge_api.models.outreach import EmailEvent, OutreachMessage, Reply
 from webforge_api.models.proposals import PreviewDeployment, Proposal
 from webforge_api.models.prospects import (
@@ -18,7 +18,9 @@ from webforge_api.models.prospects import (
     ExternalPlaceIdentifier,
     Prospect,
     ProspectCampaign,
+    ProspectMerge,
     ProspectSource,
+    QualificationResult,
 )
 from webforge_api.models.sources import DomainVerification, SourceRegistration, TransientSourceValue
 
@@ -44,10 +46,13 @@ __all__ = [
     "Proposal",
     "Prospect",
     "ProspectCampaign",
+    "ProspectMerge",
     "ProspectSource",
+    "QualificationResult",
     "Reply",
     "SourceRegistration",
     "Suppression",
+    "SystemControl",
     "TransientSourceValue",
     "User",
     "UserSession",

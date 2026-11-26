@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import (
     Boolean,
@@ -16,6 +17,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from webforge_api.db.base import Base, Timestamps, UTCDateTime, UUIDPrimaryKey, str_enum, utcnow
@@ -24,6 +26,7 @@ from webforge_api.models.enums import (
     PlaceIdStatus,
     ProspectState,
     ProvenanceSource,
+    QualificationOutcome,
     RecipientType,
 )
 
@@ -34,6 +37,14 @@ class Prospect(UUIDPrimaryKey, Timestamps, Base):
     business_name: Mapped[str] = mapped_column(String(300), nullable=False)
     # Not globally unique: branches of one business may share a site.
     verified_domain: Mapped[str | None] = mapped_column(String(253))
+    # Location-specific path on the shared site ("" = the main site). Domain + branch_key
+    # identifies a prospect; different branch keys stay separate prospects.
+    branch_key: Mapped[str] = mapped_column(
+        String(255), default="", server_default="", nullable=False
+    )
+    do_not_contact: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
     website_url: Mapped[str | None] = mapped_column(String(2048))
     industry: Mapped[str | None] = mapped_column(String(120))
     business_type: Mapped[str | None] = mapped_column(String(120))
@@ -66,6 +77,7 @@ class Prospect(UUIDPrimaryKey, Timestamps, Base):
             name="score_range",
         ),
         Index("ix_prospects_verified_domain", "verified_domain"),
+        Index("ix_prospects_domain_branch", "verified_domain", "branch_key"),
         Index("ix_prospects_state_created_at", "state", "created_at"),
         Index("ix_prospects_country_state", "country_code", "state"),
     )
@@ -186,3 +198,54 @@ class EmailContact(UUIDPrimaryKey, Timestamps, Base):
     verification_method: Mapped[str | None] = mapped_column(String(64))
 
     __table_args__ = (UniqueConstraint("prospect_id", "email_hash"),)
+
+
+class QualificationResult(UUIDPrimaryKey, Base):
+    """One evidence-based scoring run. Unknown components stay null and do not score."""
+
+    __tablename__ = "qualification_results"
+
+    prospect_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("prospects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    campaign_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="SET NULL")
+    )
+    rubric_version: Mapped[str] = mapped_column(String(16), nullable=False)
+    outcome: Mapped[QualificationOutcome] = mapped_column(
+        str_enum(QualificationOutcome, "qualification_outcome"), nullable=False
+    )
+    score: Mapped[float | None] = mapped_column(Numeric(5, 2))
+    evidence_coverage: Mapped[float] = mapped_column(Numeric(4, 3), nullable=False)
+    components: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    reason_codes: Mapped[list[str]] = mapped_column(
+        ARRAY(String(64)), default=list, server_default="{}", nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), default=utcnow, server_default=func.now(), nullable=False
+    )
+
+
+class ProspectMerge(UUIDPrimaryKey, Base):
+    """Merge history: the merged prospect is kept (state MERGED) and pointed at the survivor."""
+
+    __tablename__ = "prospect_merges"
+
+    from_prospect_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("prospects.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    into_prospect_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("prospects.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    reason: Mapped[str] = mapped_column(String(500), nullable=False)
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    merged_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    merged_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), default=utcnow, server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint("from_prospect_id <> into_prospect_id", name="distinct_prospects"),
+    )

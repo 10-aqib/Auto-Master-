@@ -4,8 +4,8 @@
 |---|---|---|---|
 | 00 | Foundation | Complete | Disabled (rejected by config) |
 | 01 | Database + auth | Complete | Disabled (rejected by config) |
-| 02 | Source adapters | **Complete — awaiting owner review** | Disabled (rejected by config) |
-| 03 | Discovery | Not started | Disabled |
+| 02 | Source adapters | Complete | Disabled (rejected by config) |
+| 03 | Discovery | **Complete** (owner pre-approved all phases) | Disabled (rejected by config) |
 | 04 | Website audit | Not started | Disabled |
 | 05 | AI intelligence | Not started | Disabled |
 | 06 | Design generation | Not started | Disabled |
@@ -14,6 +14,53 @@
 | 09 | Email/compliance | Not started | Sandbox only |
 | 10 | Dashboard/orchestration | Not started | Paused |
 | 11 | Production | Not started | Only approved category |
+
+## Phase 03 — Campaigns, discovery, dedupe and qualification (2026-11-26)
+
+Owner instruction on 2026-11-26: "all phases approved" — phases 03–11 run back to back, each still tested,
+documented and committed separately. Live email, paid API calls and cloud resources remain off.
+
+### Delivered
+- **Durable PostgreSQL job queue** (transactional enqueue, idempotency keys, `SKIP LOCKED` claims, leases and
+  crash recovery, exponential backoff, DEAD/FAILED dead-letter, manual retry/cancel, correlation IDs) and a
+  **worker** service (`webforge_api.worker`, heartbeat health check). ADR 0004.
+- **Durable pause switches** (`system_controls`, seeded paused; admins pause, only the owner resumes;
+  env emergency override). Paused work is deferred without using retry attempts.
+- **Campaigns**: CRUD with per-field validation, readiness checks, lifecycle (draft/active/paused/completed/
+  archived), candidate cap, campaign budget, idempotent daily discovery runs; closing a campaign cancels queued work.
+- **Discovery pipeline**: search → per-Place-ID website verification → qualification, using only Phase 02
+  approved, enabled connectors; rediscovery in another campaign links and re-qualifies without re-verifying.
+- **Dedupe**: domain + branch key; language paths ignored; possible same-name duplicates flagged; manual merge
+  with history; do-not-contact survives merges.
+- **Qualification rubric v1** (`docs/compliance/qualification.md`): evidence-only scoring with coverage,
+  outcomes STRONG/POTENTIAL/INVESTIGATE/REJECTED/MANUAL_REVIEW with reason codes; industry from the site's own
+  schema.org data.
+- **Prospect lifecycle** state machine with logged transitions; review tools (approve/hold/reject/do-not-contact/
+  reopen with role rules).
+- **Dashboard**: Campaigns (list, create, detail with readiness/progress/actions/edit), Prospects (filters,
+  pagination, evidence page with provenance, checks, qualification components, review), Jobs, Settings (pause).
+- Migration 0003, OpenAPI contract, docs (ADR 0004, rubric, schema, API, migrations).
+
+### Verification evidence (local run, 2026-11-26)
+
+| Check | Result |
+|---|---|
+| `make lint`, `make typecheck` (102 Python files strict; tsc) | PASS |
+| API tests on real PostgreSQL + Redis | PASS — 339 passed, 0 skipped |
+| Dashboard unit tests / build | PASS — 43 tests; 16 routes build |
+| Migration 0003 round trip (0003↔0002) | PASS |
+| Docker stack (now 6 services incl. worker) | PASS — all healthy, migrate exited 0 |
+| Smoke | PASS — 15/15 (new: worker healthy) |
+| Browser E2E | PASS — 23/23 (new: resume pause, create/activate/run mock campaign, worker processes jobs) |
+| API/worker error log lines | 0 |
+
+Required Phase 03 tests: duplicate domain ✔, branch separation ✔, unknown facts don't score ✔, policy failure
+blocks ingestion ✔, budget/campaign caps ✔, idempotent retries ✔, reject/suppression persists across campaigns ✔.
+
+### Notes
+- Mock places point at non-resolvable `*.example.test` sites, so in the live dev stack they are held at
+  verification (by design); the full verify→prospect→qualify path is exercised in tests with local fake sites.
+- Qualification stays INVESTIGATE (`awaiting_audit_evidence`) until Phase 04 audits supply evidence.
 
 ## Phase 02 — Source adapters and data governance (2026-11-26)
 

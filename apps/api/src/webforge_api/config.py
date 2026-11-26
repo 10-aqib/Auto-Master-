@@ -201,8 +201,10 @@ class Settings(BaseSettings):
     design_worker_concurrency: PositiveInt = 1
     render_worker_concurrency: PositiveInt = 1
     outreach_worker_concurrency: PositiveInt = 1
-    global_pause: bool = True
-    email_pause: bool = True
+    # Emergency overrides: true forces the pause regardless of the dashboard switch.
+    # The normal switches live in the database (system_controls) and start paused.
+    global_pause: bool = False
+    email_pause: bool = False
 
     # Monitoring / backup
     sentry_dsn: SecretStr = SecretStr("")

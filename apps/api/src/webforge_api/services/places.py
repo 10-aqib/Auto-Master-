@@ -24,6 +24,7 @@ from webforge_api.models import (
     DomainVerification,
     ExternalPlaceIdentifier,
     Prospect,
+    ProspectCampaign,
     SourceRegistration,
 )
 from webforge_api.models.enums import DomainVerificationStatus, PlaceIdStatus, ProspectState
@@ -31,6 +32,7 @@ from webforge_api.security.crypto import Crypto
 from webforge_api.services import activity
 from webforge_api.services.auth import Principal
 from webforge_api.services.context import RequestMeta
+from webforge_api.services.dedupe import branch_key_for, follow_merges
 from webforge_api.services.errors import NotFoundError, ServiceError, UnavailableError
 from webforge_api.services.provenance import FactEvidence, record_fact
 from webforge_api.sources.places import (
@@ -141,7 +143,7 @@ class PlacesService:
 
     def search(
         self,
-        actor: Principal,
+        actor: Principal | None,
         *,
         source_key: str,
         text_query: str,
@@ -192,7 +194,8 @@ class PlacesService:
             self.db,
             self.crypto,
             action="places.search",
-            actor_user_id=actor.user.id,
+            actor_user_id=actor.user.id if actor else None,
+            system=actor is None,
             meta=meta,
             entity_type="source",
             entity_id=source_key,
@@ -246,20 +249,35 @@ class PlacesService:
         return row
 
     def _record_verified_prospect(
-        self, verification: DomainVerification, outcome: VerificationOutcome
+        self,
+        verification: DomainVerification,
+        outcome: VerificationOutcome,
+        campaign_id: uuid.UUID | None,
     ) -> uuid.UUID:
-        """Create or attach a prospect using only facts the official website itself states."""
+        """Create or attach a prospect using only facts the official website itself states.
+
+        Dedupe key = verified domain + branch key (a location-specific path on a shared site).
+        Different branches stay separate; a merged prospect redirects to its survivor. Existing
+        rejected / do-not-contact decisions are never reset by rediscovery.
+        """
         website_src = self.registry.require_usable("official_website")
         if not (outcome.domain and outcome.final_url and outcome.declared_name):
             raise ServiceError("incomplete_verification", "Verification evidence is incomplete.")
+        branch = branch_key_for(outcome.final_url)
         prospect = self.db.scalar(
-            select(Prospect).where(Prospect.verified_domain == outcome.domain).limit(1)
+            select(Prospect)
+            .where(Prospect.verified_domain == outcome.domain, Prospect.branch_key == branch)
+            .order_by(Prospect.created_at)
+            .limit(1)
         )
+        prospect = follow_merges(self.db, prospect)
         if prospect is None:
             prospect = Prospect(
                 business_name=outcome.declared_name[:300],
                 verified_domain=outcome.domain,
+                branch_key=branch,
                 website_url=outcome.final_url,
+                industry=outcome.industry,
                 state=ProspectState.VERIFIED,
                 state_changed_at=self.now,
                 first_seen_at=self.now,
@@ -269,6 +287,8 @@ class PlacesService:
             self.db.flush()
         else:
             prospect.last_verified_at = self.now
+            if outcome.industry and not prospect.industry:
+                prospect.industry = outcome.industry
         evidence = FactEvidence(
             source=website_src,
             source_url=outcome.final_url,
@@ -277,19 +297,28 @@ class PlacesService:
             method=outcome.method,
             evidence_note=f"signal={outcome.evidence.get('matched_signal')}",
         )
-        for field, value in (
+        facts = [
             ("business_name", outcome.declared_name[:300]),
             ("website_url", outcome.final_url),
             ("verified_domain", outcome.domain),
-        ):
+        ]
+        if outcome.industry:
+            facts.append(("industry", outcome.industry))
+        for field, value in facts:
             record_fact(
                 self.db, prospect_id=prospect.id, field=field, value=value, evidence=evidence
+            )
+        if campaign_id is not None:
+            self.db.execute(
+                insert(ProspectCampaign)
+                .values(prospect_id=prospect.id, campaign_id=campaign_id, added_at=self.now)
+                .on_conflict_do_nothing(index_elements=["prospect_id", "campaign_id"])
             )
         verification.prospect_id = prospect.id
         return prospect.id
 
     def verify_place_website(
-        self, actor: Principal, identifier_id: uuid.UUID, meta: RequestMeta
+        self, actor: Principal | None, identifier_id: uuid.UUID, meta: RequestMeta
     ) -> VerifyResult:
         identifier = self.db.get(ExternalPlaceIdentifier, identifier_id)
         if identifier is None:
@@ -328,7 +357,7 @@ class PlacesService:
 
     def _finish_verification(
         self,
-        actor: Principal,
+        actor: Principal | None,
         outcome: VerificationOutcome,
         origin: str,
         identifier: ExternalPlaceIdentifier | None,
@@ -337,14 +366,16 @@ class PlacesService:
         row = self._store_verification(actor, outcome, origin, identifier)
         prospect_id = None
         if outcome.status is DomainVerificationStatus.VERIFIED:
-            prospect_id = self._record_verified_prospect(row, outcome)
+            campaign_id = identifier.campaign_id if identifier else None
+            prospect_id = self._record_verified_prospect(row, outcome, campaign_id)
             if identifier is not None:
                 identifier.prospect_id = prospect_id
         activity.record(
             self.db,
             self.crypto,
             action="website.verification",
-            actor_user_id=actor.user.id,
+            actor_user_id=actor.user.id if actor else None,
+            system=actor is None,
             meta=meta,
             entity_type="domain_verification",
             entity_id=row.id,

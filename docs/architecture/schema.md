@@ -1,4 +1,4 @@
-# Database Schema (migrations 0001–0002)
+# Database Schema (migrations 0001–0003)
 
 PostgreSQL 18. UUID primary keys (`gen_random_uuid()`), `timestamptz` columns stored in UTC (naive
 datetimes are rejected by the ORM), enums stored as `VARCHAR` + `CHECK` (easy to migrate),
@@ -107,3 +107,14 @@ dedupe `prospects(verified_domain)`; `activity_logs(occurred_at)` and `(entity_t
 | `external_place_identifiers` | `prospect_id` now nullable (candidates), plus `campaign_id`, `status` (ACTIVE/OBSOLETE), `first_seen_at` |
 | `prospect_sources` | `source_type` restricted to independent sources (CHECK), plus `source_key` (FK to registry), `confidence`, `verification_method` |
 | `api_usage` | `sku`, `outcome` (RESERVED/SUCCESS/ERROR), `cost_milliminor` |
+
+## Phase 03 additions (migration 0003)
+
+| Table / change | Purpose |
+|---|---|
+| `system_controls` | Durable pause switches (`global_pause`, `email_pause`), seeded paused, with reason/actor/time |
+| `qualification_results` | Every scoring run: rubric version, outcome, score, evidence coverage, per-component evidence, reason codes |
+| `prospect_merges` | Manual merge history with a snapshot of the merged prospect |
+| `prospects` | `branch_key` (location path on a shared site; index with domain), `do_not_contact`, new state `MERGED` |
+| `jobs` | `result` JSON and `created_by_user_id` |
+| `source_registrations` | `official_website` may now supply `industry` (from schema.org type) |

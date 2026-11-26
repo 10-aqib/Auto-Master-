@@ -402,7 +402,12 @@ def test_verify_place_website_creates_prospect_from_official_site_only(
         facts = db.scalars(
             select(ProspectSource).where(ProspectSource.prospect_id == prospect.id)
         ).all()
-        assert {f.fact_field for f in facts} == {"business_name", "website_url", "verified_domain"}
+        assert {f.fact_field for f in facts} == {
+            "business_name",
+            "website_url",
+            "verified_domain",
+            "industry",
+        }
         assert all(
             f.source_type.value == "OFFICIAL_WEBSITE" and f.source_key == "official_website"
             for f in facts

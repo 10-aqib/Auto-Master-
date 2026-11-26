@@ -17,6 +17,7 @@ from webforge_api.security.crypto import Crypto
 from webforge_api.security.rate_limit import RateLimiter
 from webforge_api.security.tokens import csrf_matches, csrf_token_for
 from webforge_api.services.auth import AuthService, Principal, SessionState
+from webforge_api.services.campaigns import CampaignService
 from webforge_api.services.context import RequestMeta
 from webforge_api.services.errors import PermissionDeniedError
 from webforge_api.services.places import PlacesService
@@ -215,3 +216,19 @@ def get_places_service(
 
 
 PlacesServiceDep = Annotated[PlacesService, Depends(get_places_service)]
+
+
+# ---------------------------------------------------------------------- Phase 03: discovery
+
+
+def get_campaign_service(
+    db: DbDep, settings: SettingsDep, crypto: CryptoDep, now: NowDep
+) -> CampaignService:
+    return CampaignService(db, settings, crypto, now)
+
+
+CampaignServiceDep = Annotated[CampaignService, Depends(get_campaign_service)]
+AnyStaff = Annotated[
+    Principal, Depends(require_roles(Role.OWNER, Role.ADMIN, Role.REVIEWER, Role.READ_ONLY))
+]
+Reviewers = Annotated[Principal, Depends(require_roles(Role.OWNER, Role.ADMIN, Role.REVIEWER))]

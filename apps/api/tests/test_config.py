@@ -32,8 +32,8 @@ def test_safe_defaults_fail_closed() -> None:
     assert s.email_provider.value == "mock"
     assert s.email_provider_policy_approved is False
     assert s.google_places_api_enabled is False
-    assert s.global_pause is True
-    assert s.email_pause is True
+    assert s.global_pause is False  # emergency override off; the DB switch starts paused
+    assert s.email_pause is False
     assert s.mfa_required_for_owner is True
 
 

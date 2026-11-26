@@ -253,6 +253,48 @@ try {
     }
   });
 
+  await check("owner resumes the global pause in Settings", async () => {
+    await page.getByRole("link", { name: "Settings" }).click();
+    await expectUrl(page, "/settings");
+    const g = page.locator("section", { hasText: "Global pause" });
+    await g.getByText("PAUSED", { exact: true }).waitFor();
+    await g.getByLabel("Reason").fill("E2E run");
+    await g.getByRole("button", { name: "Resume" }).click();
+    await g.getByText("RUNNING", { exact: true }).waitFor();
+  });
+
+  await check("owner creates, activates and runs a mock campaign", async () => {
+    await page.getByRole("link", { name: "Campaigns" }).click();
+    await expectUrl(page, "/campaigns");
+    await page.getByLabel("Campaign name").fill("E2E dental clinics");
+    await page.getByLabel("Target countries (ISO codes, comma-separated)").fill("PK");
+    await page.getByLabel("Discovery searches (one per line)").fill("dental clinics in Lahore");
+    await page.getByLabel("Dental clinics").check();
+    await page.getByLabel("Candidate cap").fill("3");
+    await page.getByRole("button", { name: "Create campaign" }).click();
+    await page.getByRole("heading", { name: "E2E dental clinics" }).waitFor();
+    await page.getByRole("button", { name: "Activate" }).click();
+    await page.getByText("active", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "Run discovery now" }).click();
+    await shot(page, "12-campaign");
+  });
+
+  await check("worker processes discovery jobs; unverifiable sites are held, not stored", async () => {
+    const deadline = Date.now() + 60_000;
+    for (;;) {
+      await page.reload();
+      const text = await page.locator("dl").first().innerText();
+      if (/Jobs succeeded\s*4/.test(text)) break;
+      if (Date.now() > deadline) throw new Error(`jobs did not finish: ${text}`);
+      await page.waitForTimeout(2000);
+    }
+    await page.getByText("Candidate Place IDs").waitFor();
+    await page.getByText("No prospects yet.").waitFor();
+    await page.getByRole("link", { name: "Jobs", exact: true }).click();
+    await page.getByRole("cell", { name: "discovery.search" }).first().waitFor();
+    await shot(page, "13-jobs");
+  });
+
   await check("no browser console errors", async () => {
     const real = errors.filter((e) => !/401|403|409|Failed to load resource/.test(e));
     if (real.length) throw new Error(real.join(" | "));

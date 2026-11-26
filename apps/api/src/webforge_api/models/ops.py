@@ -44,6 +44,10 @@ class Job(UUIDPrimaryKey, Timestamps, Base):
     error_code: Mapped[str | None] = mapped_column(String(64))
     error_message: Mapped[str | None] = mapped_column(String(1000))
     correlation_id: Mapped[str | None] = mapped_column(String(128), index=True)
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT")
+    )
 
     __table_args__ = (
         CheckConstraint("attempts >= 0 AND max_attempts > 0", name="attempts_valid"),
@@ -91,3 +95,19 @@ class ApiUsage(UUIDPrimaryKey, Base):
     provider_request_id: Mapped[str | None] = mapped_column(String(255))
 
     __table_args__ = (Index("ix_api_usage_provider_occurred_at", "provider", "occurred_at"),)
+
+
+class SystemControl(Base):
+    """Durable operational switches (global pause etc.). Changes are logged."""
+
+    __tablename__ = "system_controls"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(500))
+    updated_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), default=utcnow, server_default=func.now(), nullable=False
+    )
+    updated_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT")
+    )

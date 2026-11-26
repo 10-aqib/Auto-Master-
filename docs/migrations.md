@@ -5,6 +5,7 @@ Migrations live in `apps/api/src/webforge_api/migrations/versions/` and ship ins
 | Revision | Phase | Summary | Downgrade |
 |---|---|---|---|
 | 0001 | 01 | Initial schema (26 tables), append-only trigger on `activity_logs` | Drops everything (development only) |
+| 0003 | 03 | System controls (seeded paused), qualification results, merge history, branch key, do-not-contact flag, job result, MERGED state | Back to 0002; MERGED prospects become REJECTED |
 | 0002 | 02 | Source registry (seeded, all disabled), domain verifications, transient cache, candidate Place IDs, independent-only provenance, precise usage cost | Back to 0001; deletes candidate Place IDs without a prospect. Refuses to run if `prospect_sources` already has rows |
 
 Apply: `make migrate` (Compose runs the one-shot `migrate` service automatically before the API starts).

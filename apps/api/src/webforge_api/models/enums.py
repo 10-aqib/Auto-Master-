@@ -51,6 +51,7 @@ class ProspectState(StrEnum):
     DO_NOT_CONTACT = "DO_NOT_CONTACT"
     POLICY_HOLD = "POLICY_HOLD"
     EXPIRED = "EXPIRED"
+    MERGED = "MERGED"
 
 
 class RecipientType(StrEnum):
@@ -199,3 +200,11 @@ class UsageOutcome(StrEnum):
     RESERVED = "RESERVED"
     SUCCESS = "SUCCESS"
     ERROR = "ERROR"
+
+
+class QualificationOutcome(StrEnum):
+    STRONG = "STRONG"
+    POTENTIAL = "POTENTIAL"
+    INVESTIGATE = "INVESTIGATE"
+    REJECTED = "REJECTED"
+    MANUAL_REVIEW = "MANUAL_REVIEW"

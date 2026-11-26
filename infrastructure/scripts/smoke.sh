@@ -32,6 +32,7 @@ check "users API requires auth"      status_is "$API/api/v1/users" 401
 check "dashboard redirects to login" bash -c "[ \"\$(curl -s -o /dev/null -w '%{redirect_url}' --max-time 5 '$DASH/users')\" = '$DASH/login?next=%2Fusers' ]"
 check "login page renders"           body_has "$DASH/login" "Sign in"
 check "API path traversal blocked"   status_is "$DASH/api/v1/..%2F..%2Fhealth%2Flive" 404
+check "worker healthy"               bash -c '[ "$(docker inspect -f "{{.State.Health.Status}}" "$(docker compose ps -q worker)")" = healthy ]'
 check "postgres port not published"  not_published postgres 5432
 check "redis port not published"     not_published redis 6379
 
