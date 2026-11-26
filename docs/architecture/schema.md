@@ -1,0 +1,98 @@
+# Database Schema (migration 0001)
+
+PostgreSQL 18. UUID primary keys (`gen_random_uuid()`), `timestamptz` columns stored in UTC (naive
+datetimes are rejected by the ORM), enums stored as `VARCHAR` + `CHECK` (easy to migrate),
+explicit foreign-key delete rules. Source of truth: `apps/api/src/webforge_api/models/` and
+`apps/api/src/webforge_api/migrations/versions/0001_initial_schema.py`. A test fails if the two differ.
+
+## Identity and audit (used in Phase 01)
+
+```mermaid
+erDiagram
+  users ||--o{ user_sessions : "has (CASCADE)"
+  users ||--o{ mfa_recovery_codes : "has (CASCADE)"
+  users ||--o{ activity_logs : "actor (RESTRICT)"
+  users {
+    uuid id PK
+    varchar email UK "lower-case enforced"
+    varchar password_hash "Argon2id"
+    varchar role "OWNER|ADMIN|REVIEWER|READ_ONLY; one OWNER max"
+    bool is_active
+    bool mfa_enabled
+    bytea mfa_secret_encrypted "AES-256-GCM"
+    int failed_login_count
+    timestamptz locked_until
+  }
+  user_sessions {
+    uuid id PK
+    varchar refresh_token_hash UK "HMAC-SHA256"
+    varchar previous_refresh_token_hash "reuse detection"
+    bool mfa_verified
+    timestamptz refresh_expires_at
+    timestamptz absolute_expires_at
+    timestamptz revoked_at
+  }
+  mfa_recovery_codes {
+    uuid id PK
+    varchar code_hash UK
+    timestamptz used_at
+  }
+  activity_logs {
+    uuid id PK
+    timestamptz occurred_at
+    varchar action
+    varchar outcome "success|failure|denied"
+    jsonb metadata "redacted"
+    varchar ip_hash "keyed hash, never raw IP"
+  }
+```
+
+`activity_logs` is append-only: database triggers block `UPDATE`, `DELETE` and `TRUNCATE` for every role.
+
+## Business domain (tables staged now, used from Phase 02 onward)
+
+```mermaid
+erDiagram
+  users ||--o{ campaigns : creates
+  campaigns ||--o{ prospect_campaigns : ""
+  prospects ||--o{ prospect_campaigns : ""
+  prospects ||--o{ prospect_sources : "provenance (CASCADE)"
+  prospects ||--o{ external_place_identifiers : "Place ID only (CASCADE)"
+  prospects |o--o{ email_contacts : "SET NULL"
+  email_contacts ||--o{ consent_records : "CASCADE"
+  prospects ||--o{ website_audits : "RESTRICT"
+  website_audits ||--o{ audit_findings : "CASCADE"
+  prospects ||--o{ design_projects : "RESTRICT"
+  design_projects ||--o{ design_pages : "CASCADE"
+  design_projects ||--o{ proposals : "RESTRICT"
+  proposals ||--o{ preview_deployments : "token hash only"
+  prospects ||--o{ compliance_assessments : "RESTRICT"
+  policy_configs ||--o{ compliance_assessments : "RESTRICT"
+  prospects ||--o{ outreach_messages : "RESTRICT"
+  outreach_messages ||--o{ email_events : "RESTRICT"
+  outreach_messages ||--o{ replies : "RESTRICT"
+  jobs ||--o{ api_usage : "SET NULL"
+```
+
+`suppressions` has **no foreign key** to contacts or prospects: it is keyed by a normalised, keyed email
+hash so it survives deletion of the personal data it protects. `assets` is standalone (linked by storage key).
+
+## Key constraints
+
+| Rule | Enforcement |
+|---|---|
+| One OWNER account | partial unique index `uq_users_single_owner` |
+| Normalised login email | `CHECK (email = lower(email))` |
+| Unique suppression per scope | `UNIQUE (email_hash, scope, scope_ref)` + scope/ref consistency check |
+| Unique provider event | `UNIQUE (provider, provider_event_id)` on `email_events` |
+| Idempotent jobs and sends | `UNIQUE (idempotency_key)` on `jobs` and `outreach_messages` |
+| Policy needs legal review to be ACTIVE | `CHECK` requiring reviewer, qualification, review date, effective date, sources; one ACTIVE per country/recipient/category |
+| ISO country codes | `CHECK (country_code ~ '^[A-Z]{2}$')` |
+| Prospect history is never silently lost | `RESTRICT` from audits, designs, proposals, assessments, messages, replies |
+| Domains are not globally unique | index only on `prospects.verified_domain` (branches may share a site) |
+
+## Indexes for expected queries
+
+Queue scans `jobs(queue, status, available_at)`, `jobs(status, created_at)`; dashboard
+`prospects(state, created_at)`, `prospects(country_code, state)`, `campaigns(status, created_at)`;
+dedupe `prospects(verified_domain)`; `activity_logs(occurred_at)` and `(entity_type, entity_id)`.

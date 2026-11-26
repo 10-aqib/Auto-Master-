@@ -19,6 +19,7 @@ def _production_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_SECRET_KEY", secrets.token_urlsafe(48))
     monkeypatch.setenv("JWT_SIGNING_KEY", secrets.token_urlsafe(48))
     monkeypatch.setenv("ENCRYPTION_KEY", _key32())
+    monkeypatch.setenv("LOOKUP_HASH_KEY", secrets.token_urlsafe(48))
     monkeypatch.setenv(
         "DATABASE_URL", "postgresql+psycopg://webforge:s3cure-test-pw@postgres:5432/webforge"
     )
@@ -46,7 +47,9 @@ def test_valid_production_settings_load(monkeypatch: pytest.MonkeyPatch) -> None
     assert load_settings().is_production
 
 
-@pytest.mark.parametrize("name", ["APP_SECRET_KEY", "JWT_SIGNING_KEY", "ENCRYPTION_KEY"])
+@pytest.mark.parametrize(
+    "name", ["APP_SECRET_KEY", "JWT_SIGNING_KEY", "ENCRYPTION_KEY", "LOOKUP_HASH_KEY"]
+)
 def test_production_requires_secret(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
     _production_env(monkeypatch)
     monkeypatch.delenv(name)
@@ -178,3 +181,33 @@ def test_production_rejects_placeholder_redis_password(monkeypatch: pytest.Monke
     monkeypatch.setenv("REDIS_URL", "redis://:CHANGE_ME@redis:6379/0")
     with pytest.raises(ConfigurationError, match="REDIS_URL"):
         load_settings()
+
+
+@pytest.mark.parametrize(
+    ("name", "value"), [("COOKIE_SECURE", "false"), ("MFA_REQUIRED_FOR_OWNER", "false")]
+)
+def test_production_requires_secure_auth_settings(
+    monkeypatch: pytest.MonkeyPatch, name: str, value: str
+) -> None:
+    _production_env(monkeypatch)
+    monkeypatch.setenv(name, value)
+    with pytest.raises(ConfigurationError, match=name):
+        load_settings()
+
+
+def test_production_rejects_bad_previous_encryption_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    _production_env(monkeypatch)
+    monkeypatch.setenv("ENCRYPTION_KEY_PREVIOUS", "short")
+    with pytest.raises(ConfigurationError, match="ENCRYPTION_KEY_PREVIOUS"):
+        load_settings()
+
+
+def test_invalid_trusted_proxy_cidr_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TRUSTED_PROXY_CIDRS", "10.0.0.0/8,not-a-cidr")
+    with pytest.raises(ConfigurationError):
+        load_settings()
+
+
+def test_sqlalchemy_url_selects_psycopg_driver() -> None:
+    s = Settings(database_url="postgresql://u:p@db:5432/x")
+    assert s.sqlalchemy_url == "postgresql+psycopg://u:p@db:5432/x"

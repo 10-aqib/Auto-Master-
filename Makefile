@@ -7,13 +7,17 @@ DASH_DIR := apps/dashboard
 UV := uv --directory $(API_DIR)
 NPM := npm --prefix $(DASH_DIR)
 
-.PHONY: help env install dev up down logs ps smoke lint format typecheck test build compose-config clean
+TEST_DB_URL := postgresql://webforge:webforge-test-only@127.0.0.1:55432/webforge
+TEST_REDIS_URL := redis://127.0.0.1:56379/0
+TEST_COMPOSE := docker compose -f infrastructure/docker/compose.test.yml
+
+.PHONY: help env install dev up down logs ps smoke lint format typecheck test test-integration test-services-up test-services-down build compose-config migrate owner contracts e2e clean
 
 help: ## Show available commands
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS=":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS=":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-env: ## Create a local .env from .env.example (never overwrites)
-	@if [ -f .env ]; then echo ".env already exists"; else cp .env.example .env && chmod 600 .env && echo "Created .env. Replace every CHANGE_ME value before running 'make dev'."; fi
+env: ## Create .env with fresh random secrets (never overwrites)
+	@python3 infrastructure/scripts/generate-env.py || true
 
 install: ## Install API and dashboard dependencies from lockfiles
 	$(UV) sync --frozen
@@ -52,9 +56,33 @@ typecheck: ## Static type checks (mypy strict, tsc strict)
 	$(UV) run mypy
 	$(NPM) run typecheck
 
-test: ## Unit tests (API pytest, dashboard vitest)
+test: ## Fast tests (database tests are skipped without TEST_DATABASE_URL)
 	$(UV) run pytest
 	$(NPM) test
+
+test-services-up: ## Start throwaway Postgres/Redis for integration tests
+	$(TEST_COMPOSE) up -d --wait
+
+test-services-down: ## Stop the throwaway test services
+	$(TEST_COMPOSE) down -v
+
+test-integration: test-services-up ## Full API suite against real Postgres/Redis, then dashboard tests
+	TEST_DATABASE_URL=$(TEST_DB_URL) TEST_REDIS_URL=$(TEST_REDIS_URL) REQUIRE_DB_TESTS=1 $(UV) run pytest
+	$(NPM) test
+
+contracts: ## Regenerate packages/contracts/openapi.json from the API code
+	$(UV) run python -m webforge_api.cli openapi > packages/contracts/openapi.json
+
+e2e: ## Browser end-to-end auth test against `make dev` (needs an empty users table)
+	npm --prefix tests/e2e ci --no-audit --no-fund
+	node tests/e2e/auth-flow.mjs
+
+migrate: ## Apply database migrations in the running stack
+	docker compose run --rm migrate
+
+owner: ## One-time owner bootstrap: make owner EMAIL=you@domain NAME="Your Name"
+	@test -n "$(EMAIL)" -a -n "$(NAME)" || (echo 'Usage: make owner EMAIL=you@domain NAME="Your Name"' && exit 1)
+	docker compose exec api python -m webforge_api.cli bootstrap-owner --email "$(EMAIL)" --name "$(NAME)"
 
 build: ## Production builds (dashboard bundle + container images)
 	$(NPM) run build

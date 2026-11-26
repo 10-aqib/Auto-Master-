@@ -7,6 +7,7 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.conftest import make_settings
 from webforge_api.api.health import Checker, get_dependency_checks
 from webforge_api.config import Settings
 from webforge_api.main import create_app
@@ -25,7 +26,7 @@ async def _hang(_s: Settings) -> None:
 
 
 def _client(checks: dict[str, Checker]) -> Iterator[TestClient]:
-    app = create_app(Settings(readiness_timeout_seconds=0.2))
+    app = create_app(make_settings(readiness_timeout_seconds=0.2))
     app.dependency_overrides[get_dependency_checks] = lambda: checks
     with TestClient(app) as client:
         yield client
@@ -81,7 +82,7 @@ def test_ready_times_out_slow_dependency(hanging: TestClient) -> None:
 
 
 def test_real_checks_fail_when_services_unreachable() -> None:
-    settings = Settings(
+    settings = make_settings(
         database_url="postgresql://u:p@127.0.0.1:1/x",
         redis_url="redis://127.0.0.1:1/0",
         readiness_timeout_seconds=1,
@@ -109,7 +110,7 @@ def test_unsafe_request_id_replaced(healthy: TestClient) -> None:
 
 
 def test_docs_disabled_in_production(monkeypatch: pytest.MonkeyPatch) -> None:
-    app = create_app(Settings(app_env="production"))
+    app = create_app(make_settings(app_env="production"))
     with TestClient(app) as client:
         assert client.get("/docs").status_code == 404
         assert client.get("/openapi.json").status_code == 404

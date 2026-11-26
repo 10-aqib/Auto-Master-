@@ -1,0 +1,83 @@
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+from typing import Any
+
+from sqlalchemy import BigInteger, ForeignKey, Integer, String, Text, UniqueConstraint, text
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
+
+from webforge_api.db.base import Base, Timestamps, UTCDateTime, UUIDPrimaryKey, str_enum
+from webforge_api.models.enums import RunStatus
+
+
+class DesignProject(UUIDPrimaryKey, Timestamps, Base):
+    __tablename__ = "design_projects"
+
+    prospect_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("prospects.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    audit_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("website_audits.id", ondelete="SET NULL")
+    )
+    status: Mapped[RunStatus] = mapped_column(
+        str_enum(RunStatus, "design_status"),
+        default=RunStatus.PENDING,
+        server_default=RunStatus.PENDING.value,
+        nullable=False,
+    )
+    brief: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    brief_schema_version: Mapped[str | None] = mapped_column(String(32))
+    design_tokens: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    page_plan: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    model: Mapped[str | None] = mapped_column(String(100))
+    prompt_version: Mapped[str | None] = mapped_column(String(32))
+    renderer_version: Mapped[str | None] = mapped_column(String(32))
+    current_version: Mapped[int] = mapped_column(
+        Integer, default=1, server_default="1", nullable=False
+    )
+
+
+class DesignPage(UUIDPrimaryKey, Timestamps, Base):
+    __tablename__ = "design_pages"
+
+    design_project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("design_projects.id", ondelete="CASCADE"), nullable=False
+    )
+    slug: Mapped[str] = mapped_column(String(80), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    page_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    content: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default="{}", nullable=False
+    )
+    render_status: Mapped[RunStatus] = mapped_column(
+        str_enum(RunStatus, "render_status"),
+        default=RunStatus.PENDING,
+        server_default=RunStatus.PENDING.value,
+        nullable=False,
+    )
+    screenshot_key: Mapped[str | None] = mapped_column(String(512))
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    version: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
+
+    __table_args__ = (UniqueConstraint("design_project_id", "slug", "version"),)
+
+
+class Asset(UUIDPrimaryKey, Timestamps, Base):
+    __tablename__ = "assets"
+
+    storage_key: Mapped[str] = mapped_column(String(512), unique=True, nullable=False)
+    asset_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(127), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    provider: Mapped[str | None] = mapped_column(String(64))
+    source_url: Mapped[str | None] = mapped_column(String(2048))
+    license_id: Mapped[str | None] = mapped_column(String(64))
+    license_url: Mapped[str | None] = mapped_column(String(2048))
+    attribution_required: Mapped[bool] = mapped_column(
+        default=False, server_default=text("false"), nullable=False
+    )
+    attribution_text: Mapped[str | None] = mapped_column(Text)
+    expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime())

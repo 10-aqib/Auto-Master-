@@ -4,8 +4,9 @@ Internal platform for Muhammad Aqib (Website Developer) to discover business pro
 public websites, create independent redesign concepts, prepare proposals and run legally eligible
 outreach. It is being built in 12 controlled phases.
 
-**Current state: Phase 00 (foundation) complete.** No business features, external API calls or email
-sending exist yet. See [`docs/implementation-status.md`](docs/implementation-status.md).
+**Current state: Phase 01 (database and secure authentication) complete.** Accounts, MFA, roles and the
+activity log work end to end. No discovery, external API calls or email sending exist yet. See
+[`docs/implementation-status.md`](docs/implementation-status.md).
 
 ## Stack
 
@@ -17,16 +18,14 @@ Pinned versions: [`docs/versions.md`](docs/versions.md).
 Requirements: Docker Engine with Compose v2, Node.js 22, Python 3.13, [uv](https://docs.astral.sh/uv/), GNU Make.
 
 ```bash
-make env        # creates .env from .env.example (mode 600)
-```
-
-Edit `.env` and replace every `CHANGE_ME` (Postgres and Redis passwords must match their URLs).
-
-```bash
+make env        # creates .env with fresh random secrets (mode 600)
 make install    # API + dashboard dependencies from lockfiles
-make dev        # build and start the stack; waits until healthy
-make smoke      # verify health, readiness and closed ports
+make dev        # build, migrate and start the stack; waits until healthy
+make smoke      # verify health, readiness, auth gating and closed ports
+make owner EMAIL=you@yourdomain NAME="Muhammad Aqib"   # one-time; prompts for a password
 ```
+
+Open the dashboard, sign in and set up two-factor authentication (required for the owner).
 
 - Dashboard: http://127.0.0.1:3000
 - API health: http://127.0.0.1:8000/health/ready
@@ -37,18 +36,23 @@ Stop with `make down`. Run `make help` for every command.
 ## Quality checks
 
 ```bash
-make lint && make typecheck && make test
+make lint && make typecheck
+make test-integration   # starts throwaway Postgres/Redis; runs every API and dashboard test
+make e2e                # browser end-to-end auth flow against `make dev` (fresh database)
 ```
 
-CI runs the same checks plus a production build and a full Docker stack smoke test.
+`make test` runs without a database and reports the database tests as skipped. CI runs everything,
+including a production build, the Docker smoke test and the browser end-to-end flow.
 
 ## Repository layout
 
 ```text
 apps/api/             FastAPI service (src/webforge_api, tests)
 apps/dashboard/       Next.js dashboard
-infrastructure/       Dockerfiles and scripts
-docs/                 status, versions, architecture, ADRs
+packages/contracts/   generated OpenAPI contract (make contracts)
+infrastructure/       Dockerfiles, test services and scripts
+tests/e2e/            browser end-to-end tests
+docs/                 status, versions, architecture, API, security, ADRs
 docs/spec/            product handoff: specs, phase prompts, checklists
 .github/workflows/    CI
 ```

@@ -24,10 +24,14 @@ check "api /health/live"             body_has "$API/health/live" '"status":"ok"'
 check "api /health/ready is ready"   body_has "$API/health/ready" '"status":"ready"'
 check "api returns x-request-id"     header_has "$API/health/live" x-request-id
 check "dashboard /health"            body_has "$DASH/health" '"status":"ok"'
-# The status panel streams in after the shell, as HTML (>Ready<) or RSC payload ("Ready\").
-check "dashboard shows API ready"    body_matches "$DASH/" '(>Ready<|"Ready\\")'
-check "dashboard sends CSP header"   header_has "$DASH/" content-security-policy
+check "dashboard sends CSP header"   header_has "$DASH/login" content-security-policy
 check "unknown API route is 404"     status_is "$API/nope" 404
+check "migrations applied (exit 0)"  bash -c '[ "$(docker compose ps -a --format "{{.ExitCode}}" migrate)" = "0" ]'
+check "auth required on /auth/me"    status_is "$DASH/api/v1/auth/me" 401
+check "users API requires auth"      status_is "$API/api/v1/users" 401
+check "dashboard redirects to login" bash -c "[ \"\$(curl -s -o /dev/null -w '%{redirect_url}' --max-time 5 '$DASH/users')\" = '$DASH/login?next=%2Fusers' ]"
+check "login page renders"           body_has "$DASH/login" "Sign in"
+check "API path traversal blocked"   status_is "$DASH/api/v1/..%2F..%2Fhealth%2Flive" 404
 check "postgres port not published"  not_published postgres 5432
 check "redis port not published"     not_published redis 6379
 

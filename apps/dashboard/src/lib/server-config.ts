@@ -7,6 +7,8 @@ export class DashboardConfigError extends Error {}
 
 export interface ServerConfig {
   apiInternalUrl: string;
+  /** Forward the incoming X-Forwarded-For to the API. Enable only behind a trusted proxy (Caddy). */
+  trustForwardedFor: boolean;
 }
 
 export function parseServerConfig(env: Record<string, string | undefined>): ServerConfig {
@@ -23,7 +25,14 @@ export function parseServerConfig(env: Record<string, string | undefined>): Serv
   if (url.username || url.password) {
     throw new DashboardConfigError("API_INTERNAL_URL must not contain credentials");
   }
-  return { apiInternalUrl: url.origin + url.pathname.replace(/\/+$/, "") };
+  const trust = (env.DASHBOARD_TRUST_FORWARDED_FOR ?? "false").trim().toLowerCase();
+  if (trust !== "true" && trust !== "false") {
+    throw new DashboardConfigError("DASHBOARD_TRUST_FORWARDED_FOR must be true or false");
+  }
+  return {
+    apiInternalUrl: url.origin + url.pathname.replace(/\/+$/, ""),
+    trustForwardedFor: trust === "true",
+  };
 }
 
 export function getServerConfig(): ServerConfig {

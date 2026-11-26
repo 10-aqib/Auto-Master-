@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import ipaddress
 from enum import StrEnum
 from functools import lru_cache
 from typing import Annotated, Self
@@ -55,6 +56,11 @@ def _is_placeholder(value: str) -> bool:
     return any(marker in upper for marker in PLACEHOLDER_MARKERS)
 
 
+def is_valid_encryption_key(value: str) -> bool:
+    decoded = _decode_key(value)
+    return decoded is not None and len(decoded) == 32
+
+
 def _decode_key(value: str) -> bytes | None:
     padded = value + "=" * (-len(value) % 4)
     try:
@@ -94,9 +100,23 @@ class Settings(BaseSettings):
     app_secret_key: SecretStr = SecretStr("")
     jwt_signing_key: SecretStr = SecretStr("")
     encryption_key: SecretStr = SecretStr("")
-    access_token_minutes: PositiveInt = 15
-    refresh_token_days: PositiveInt = 7
+    # Previous ENCRYPTION_KEY, accepted for decryption only during key rotation.
+    encryption_key_previous: SecretStr = SecretStr("")
+    # Keyed hash for lookups (email/suppression hashes). Never rotate without re-hashing.
+    lookup_hash_key: SecretStr = SecretStr("")
+    access_token_minutes: Annotated[int, Field(gt=0, le=60)] = 15
+    refresh_token_days: Annotated[int, Field(gt=0, le=30)] = 7
+    session_max_days: Annotated[int, Field(gt=0, le=90)] = 30
+    mfa_pending_minutes: Annotated[int, Field(gt=0, le=15)] = 5
+    # Applies to OWNER and ADMIN accounts.
     mfa_required_for_owner: bool = True
+    cookie_secure: bool = True
+    # CIDRs of reverse proxies (the dashboard container) whose X-Forwarded-For is trusted.
+    trusted_proxy_cidrs: str = "127.0.0.1/32"
+    login_rate_limit_per_ip_per_minute: PositiveInt = 10
+    login_rate_limit_per_account_per_hour: PositiveInt = 20
+    account_lockout_threshold: PositiveInt = 10
+    account_lockout_minutes: PositiveInt = 15
 
     # AI
     ai_provider: AIProvider = AIProvider.ANTHROPIC
@@ -166,6 +186,17 @@ class Settings(BaseSettings):
             raise ValueError(f"unknown IANA timezone: {value!r}") from exc
         return value
 
+    @field_validator("trusted_proxy_cidrs")
+    @classmethod
+    def _valid_cidrs(cls, value: str) -> str:
+        for cidr in (c.strip() for c in value.split(",")):
+            if cidr:
+                try:
+                    ipaddress.ip_network(cidr, strict=False)
+                except ValueError as exc:
+                    raise ValueError(f"invalid CIDR in TRUSTED_PROXY_CIDRS: {cidr!r}") from exc
+        return value
+
     @field_validator("database_url")
     @classmethod
     def _postgres_url(cls, value: SecretStr) -> SecretStr:
@@ -204,6 +235,21 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.cors_allowed_origins.split(",") if o.strip()]
 
     @property
+    def trusted_proxies(self) -> list[ipaddress.IPv4Network | ipaddress.IPv6Network]:
+        return [
+            ipaddress.ip_network(c.strip(), strict=False)
+            for c in self.trusted_proxy_cidrs.split(",")
+            if c.strip()
+        ]
+
+    @property
+    def sqlalchemy_url(self) -> str:
+        """DATABASE_URL with the psycopg (v3) driver selected."""
+        return self.database_url.get_secret_value().replace(
+            "postgresql://", "postgresql+psycopg://", 1
+        )
+
+    @property
     def psycopg_conninfo(self) -> str:
         """DATABASE_URL in the libpq form psycopg expects (no SQLAlchemy driver suffix)."""
         return self.database_url.get_secret_value().replace(
@@ -217,6 +263,7 @@ class Settings(BaseSettings):
             "APP_SECRET_KEY": self.app_secret_key.get_secret_value(),
             "JWT_SIGNING_KEY": self.jwt_signing_key.get_secret_value(),
             "ENCRYPTION_KEY": self.encryption_key.get_secret_value(),
+            "LOOKUP_HASH_KEY": self.lookup_hash_key.get_secret_value(),
         }
         for name, value in secrets.items():
             if not value:
@@ -227,14 +274,22 @@ class Settings(BaseSettings):
                 problems.append(f"{name} must be at least {MIN_SECRET_LENGTH} characters")
 
         enc = secrets["ENCRYPTION_KEY"]
-        if enc and not _is_placeholder(enc):
-            decoded = _decode_key(enc)
-            if decoded is None or len(decoded) != 32:
-                problems.append("ENCRYPTION_KEY must be 32 random bytes, URL-safe base64 encoded")
+        if enc and not _is_placeholder(enc) and not is_valid_encryption_key(enc):
+            problems.append("ENCRYPTION_KEY must be 32 random bytes, URL-safe base64 encoded")
+        prev = self.encryption_key_previous.get_secret_value()
+        if prev and not is_valid_encryption_key(prev):
+            problems.append("ENCRYPTION_KEY_PREVIOUS must be 32 random bytes, URL-safe base64")
 
         filled = [v for v in secrets.values() if v]
         if len(set(filled)) != len(filled):
-            problems.append("APP_SECRET_KEY, JWT_SIGNING_KEY and ENCRYPTION_KEY must all differ")
+            problems.append(
+                "APP_SECRET_KEY, JWT_SIGNING_KEY, ENCRYPTION_KEY and LOOKUP_HASH_KEY "
+                "must all differ"
+            )
+        if not self.cookie_secure:
+            problems.append("COOKIE_SECURE must be true in production")
+        if not self.mfa_required_for_owner:
+            problems.append("MFA_REQUIRED_FOR_OWNER must be true in production")
 
         urls = {
             "DATABASE_URL": self.database_url,

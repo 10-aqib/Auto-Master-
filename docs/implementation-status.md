@@ -2,8 +2,8 @@
 
 | Phase | Name | Status | Email |
 |---|---|---|---|
-| 00 | Foundation | **Complete — awaiting owner review** | Disabled (rejected by config) |
-| 01 | Database + auth | Not started | Disabled |
+| 00 | Foundation | Complete | Disabled (rejected by config) |
+| 01 | Database + auth | **Complete — awaiting owner review** | Disabled (rejected by config) |
 | 02 | Source adapters | Not started | Disabled |
 | 03 | Discovery | Not started | Disabled |
 | 04 | Website audit | Not started | Disabled |
@@ -14,6 +14,76 @@
 | 09 | Email/compliance | Not started | Sandbox only |
 | 10 | Dashboard/orchestration | Not started | Paused |
 | 11 | Production | Not started | Only approved category |
+
+## Phase 01 — Database, migrations and secure authentication (2026-11-26)
+
+### Delivered
+- **Schema:** migration `0001` creates all 24 spec tables plus `user_sessions` and `mfa_recovery_codes`
+  (UUID keys, UTC `timestamptz`, FKs with deliberate delete rules, CHECK/unique constraints, indexes).
+  Business tables are staged for later phases. See `docs/architecture/schema.md` and `docs/migrations.md`.
+- **Append-only activity log** enforced by database triggers (UPDATE, DELETE and TRUNCATE blocked).
+- **Owner bootstrap:** one-time CLI (`make owner`), no default password, single-OWNER DB constraint.
+- **Auth:** Argon2id, password policy, signed 15-minute access tokens, rotating hashed refresh tokens with
+  reuse detection, 30-day absolute session limit, logout / logout-all / per-session revoke, forced
+  password change for admin-created accounts.
+- **MFA:** TOTP enrolment with QR, replay protection, 10 single-use recovery codes, required for
+  OWNER/ADMIN, owner can reset another user's MFA.
+- **RBAC:** OWNER, ADMIN, REVIEWER, READ_ONLY with tested allow/deny for every route; session-state gating.
+- **Web security:** HttpOnly SameSite=Lax cookies (`__Host-` + Secure in production), session-bound CSRF
+  token, Origin allow-list, login rate limits per IP and per account (Redis, fail closed), account lockout,
+  generic errors that never echo input.
+- **Encryption utility:** AES-256-GCM with column-bound associated data and key fingerprints for rotation;
+  keyed lookup hashes for emails/IPs.
+- **Retention interfaces:** session purge, contact deletion and prospect erasure that never remove suppressions.
+- **Dashboard:** login, MFA verify and enrolment, forced password change, account security (password, MFA,
+  recovery codes, sessions), user administration and activity log; same-origin API proxy and automatic
+  token refresh. Every control performs a real action.
+- **Contract:** `packages/contracts/openapi.json` (test fails if stale). API reference: `docs/api/README.md`.
+- **Ops:** Compose `migrate` one-shot service; `make env` generates real secrets; `make test-integration`
+  with throwaway Postgres/Redis; browser E2E test (`make e2e`); CI runs DB tests (required) and the E2E flow.
+- **Docs:** `docs/security/authentication.md`, `docs/compliance/retention.md`, ADR 0002, updated
+  `.env.example`, versions and architecture.
+
+### Verification evidence (local run, 2026-11-26)
+
+| Check | Command | Result |
+|---|---|---|
+| Install | `make install` | PASS |
+| Lint / format | `make lint` (ruff, eslint, prettier) | PASS |
+| Types | `make typecheck` (mypy strict, 66 files; tsc strict) | PASS — 0 issues |
+| API tests (real PostgreSQL 18 + Redis 8) | `make test-integration` | PASS — 193 passed, 0 skipped |
+| Dashboard tests | `npm test` | PASS — 37 passed (5 files) |
+| API tests without a database | `make test` | 85 passed, 108 **skipped** (reported, not counted as passed) |
+| Dashboard production build | `npm run build` | PASS — 10 routes + proxy |
+| Compose | `make compose-config`, `docker compose up --build --wait` | PASS — migrate exited 0, 4 services healthy |
+| Smoke | `make smoke` | PASS — 14/14 |
+| Browser E2E | `make e2e` (Chromium) | PASS — 15/15 steps |
+| Log hygiene | grep API logs for test passwords/emails; error lines | 0 matches; 0 errors |
+| CI | GitHub Actions | NOT RUN here — runs on push |
+
+Test coverage by area: migrations (empty DB upgrade, downgrade/upgrade round trip, models = migrations),
+password hashing/policy, login/logout/revocation, refresh rotation/reuse/grace/expiry/absolute limit, MFA
+enrolment/verify/replay/recovery/expiry/disable rules, RBAC matrix (28 role×route cases) and forged/`alg:none`
+tokens, CSRF and Origin, rate limiting (IP, account, MFA, limiter outage), lockout, activity-log redaction and
+append-only triggers, FK/unique/check constraints, UTC handling, encryption/rotation, retention, bootstrap CLI,
+client-IP trust, dashboard redirect safety, proxy path/header filtering.
+
+### Known issues / notes
+- Migration `0001` was regenerated during this phase (never applied outside development). From now on,
+  schema changes must be new revisions.
+- CSP still allows inline scripts; nonce-based CSP is planned for Phase 10 (ADR 0002).
+- Per-IP login limiting sees the dashboard as the client until Caddy supplies a trusted
+  `X-Forwarded-For` (Phase 11). Per-account limits and lockout are fully effective now.
+- Starlette's `httpx` test-client deprecation warning remains (harmless).
+
+### Security observations
+- No secrets, real customer data or default credentials in the repository.
+- Tokens, recovery codes and MFA secrets are stored only as HMACs or ciphertext.
+- `LOOKUP_HASH_KEY` must never be rotated without re-hashing; documented in the auth design.
+
+### Next phase
+Phase 02 — Source adapters and data governance (`docs/spec/PHASE_PROMPTS/PHASE_02_SOURCE_ADAPTERS.md`).
+Requires owner approval to start.
 
 ## Phase 00 — Foundation (2026-11-26)
 

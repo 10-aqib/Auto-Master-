@@ -46,3 +46,15 @@ def test_logger_output_is_json_and_redacted(capsys: pytest.CaptureFixture[str]) 
     assert ":b@" not in record["event"]
     assert record["level"] == "info"
     assert record["timestamp"].endswith("Z")
+
+
+@pytest.mark.parametrize(
+    "key", ["email", "contact_email", "phone", "postal_address", "api_key", "session_token"]
+)
+def test_sensitive_keys(key: str) -> None:
+    assert redact_value(key, "value") == REDACTED
+
+
+@pytest.mark.parametrize("key", ["email_pause", "email_sending_enabled", "session_id", "count"])
+def test_operational_keys_not_redacted(key: str) -> None:
+    assert redact_value(key, "value") == "value"

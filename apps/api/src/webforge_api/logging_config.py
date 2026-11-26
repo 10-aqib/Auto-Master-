@@ -13,9 +13,12 @@ import structlog
 REDACTED = "[REDACTED]"
 
 SENSITIVE_KEY_PATTERN = re.compile(
-    r"(pass(word|wd)?|secret|token|api[_-]?key|authorization|cookie|session|"
-    r"credential|private[_-]?key|encryption[_-]?key|signing[_-]?key|dsn|"
-    r"email|phone|address)",
+    # Secrets: any key containing these fragments.
+    r"(pass(word|wd)?|secret|token|api[_-]?key|authorization|cookie|"
+    r"credential|private[_-]?key|encryption[_-]?key|signing[_-]?key|dsn)"
+    # Personal data: keys that ARE an email/phone/address (not e.g. `email_pause`).
+    r"|^(.*[_-])?(e[_-]?mail|email[_-]?address|phone|phone[_-]?number|"
+    r"address|postal[_-]?address|recipient)$",
     re.IGNORECASE,
 )
 
