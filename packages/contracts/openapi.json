@@ -316,6 +316,130 @@
         "title": "AuthResponse",
         "type": "object"
       },
+      "BriefOut": {
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "brief": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brief"
+          },
+          "cost_milliminor": {
+            "title": "Cost Milliminor",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "design_project_id": {
+            "format": "uuid",
+            "title": "Design Project Id",
+            "type": "string"
+          },
+          "facts_snapshot": {
+            "additionalProperties": true,
+            "title": "Facts Snapshot",
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "prompt_version": {
+            "title": "Prompt Version",
+            "type": "string"
+          },
+          "review_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Notes"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "validation_issues": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Validation Issues",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "design_project_id",
+          "version",
+          "status",
+          "brief",
+          "schema_version",
+          "prompt_version",
+          "model",
+          "facts_snapshot",
+          "validation_issues",
+          "attempts",
+          "input_tokens",
+          "output_tokens",
+          "cost_milliminor",
+          "review_notes",
+          "reviewed_at",
+          "created_at"
+        ],
+        "title": "BriefOut",
+        "type": "object"
+      },
       "CampaignDetail": {
         "properties": {
           "campaign": {
@@ -714,6 +838,111 @@
           "status"
         ],
         "title": "DependencyCheck",
+        "type": "object"
+      },
+      "DesignDetail": {
+        "properties": {
+          "briefs": {
+            "items": {
+              "$ref": "#/components/schemas/BriefOut"
+            },
+            "title": "Briefs",
+            "type": "array"
+          },
+          "project": {
+            "$ref": "#/components/schemas/DesignProjectOut"
+          }
+        },
+        "required": [
+          "project",
+          "briefs"
+        ],
+        "title": "DesignDetail",
+        "type": "object"
+      },
+      "DesignProjectOut": {
+        "properties": {
+          "audit_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audit Id"
+          },
+          "brief_schema_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brief Schema Version"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "current_version": {
+            "title": "Current Version",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
+          "prospect_id": {
+            "format": "uuid",
+            "title": "Prospect Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "prospect_id",
+          "audit_id",
+          "status",
+          "brief_schema_version",
+          "prompt_version",
+          "model",
+          "current_version",
+          "created_at"
+        ],
+        "title": "DesignProjectOut",
         "type": "object"
       },
       "FindingOut": {
@@ -1803,34 +2032,6 @@
         "title": "RecoveryCodesResponse",
         "type": "object"
       },
-      "ReviewIn": {
-        "additionalProperties": false,
-        "properties": {
-          "decision": {
-            "enum": [
-              "approve",
-              "reject",
-              "do_not_contact",
-              "hold",
-              "reopen"
-            ],
-            "title": "Decision",
-            "type": "string"
-          },
-          "reason": {
-            "maxLength": 500,
-            "minLength": 3,
-            "title": "Reason",
-            "type": "string"
-          }
-        },
-        "required": [
-          "decision",
-          "reason"
-        ],
-        "title": "ReviewIn",
-        "type": "object"
-      },
       "ReviewRequest": {
         "additionalProperties": false,
         "properties": {
@@ -2784,6 +2985,54 @@
           "place_obsolete"
         ],
         "title": "VerifyResponse",
+        "type": "object"
+      },
+      "webforge_api__api__v1__designs__ReviewIn": {
+        "additionalProperties": false,
+        "properties": {
+          "approve": {
+            "title": "Approve",
+            "type": "boolean"
+          },
+          "notes": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Notes",
+            "type": "string"
+          }
+        },
+        "required": [
+          "approve"
+        ],
+        "title": "ReviewIn",
+        "type": "object"
+      },
+      "webforge_api__api__v1__discovery__ReviewIn": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "enum": [
+              "approve",
+              "reject",
+              "do_not_contact",
+              "hold",
+              "reopen"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision",
+          "reason"
+        ],
+        "title": "ReviewIn",
         "type": "object"
       }
     }
@@ -3773,6 +4022,156 @@
         ]
       }
     },
+    "/api/v1/designs": {
+      "get": {
+        "operationId": "list_designs_api_v1_designs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "prospect_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Prospect Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DesignProjectOut"
+                  },
+                  "title": "Response List Designs Api V1 Designs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Designs",
+        "tags": [
+          "designs"
+        ]
+      }
+    },
+    "/api/v1/designs/briefs/{brief_id}/review": {
+      "post": {
+        "operationId": "review_api_v1_designs_briefs__brief_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "brief_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Brief Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/webforge_api__api__v1__designs__ReviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review",
+        "tags": [
+          "designs"
+        ]
+      }
+    },
+    "/api/v1/designs/{design_id}": {
+      "get": {
+        "operationId": "get_design_api_v1_designs__design_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "design_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Design Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Design",
+        "tags": [
+          "designs"
+        ]
+      }
+    },
     "/api/v1/industries": {
       "get": {
         "operationId": "industries_api_v1_industries_get",
@@ -4360,6 +4759,49 @@
         ]
       }
     },
+    "/api/v1/prospects/{prospect_id}/brief": {
+      "post": {
+        "operationId": "start_brief_api_v1_prospects__prospect_id__brief_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "prospect_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Prospect Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Brief",
+        "tags": [
+          "designs"
+        ]
+      }
+    },
     "/api/v1/prospects/{prospect_id}/qualify": {
       "post": {
         "operationId": "requalify_api_v1_prospects__prospect_id__qualify_post",
@@ -4439,7 +4881,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ReviewIn"
+                "$ref": "#/components/schemas/webforge_api__api__v1__discovery__ReviewIn"
               }
             }
           },

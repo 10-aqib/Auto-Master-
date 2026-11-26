@@ -54,6 +54,9 @@ in non-production environments only.
 | POST | `/prospects/{id}/qualify`, `/prospects/merge` | OWNER, ADMIN | Re-score; manual merge with history |
 | GET/POST | `/jobs`, `/jobs/{id}/retry|cancel` | OWNER, ADMIN | Dead-letter visibility and manual recovery |
 | GET/PUT | `/controls`, `/controls/{key}` | read: all; pause: OWNER/ADMIN; resume: OWNER | Durable pause switches |
+| POST | `/prospects/{id}/brief` | OWNER, ADMIN | Queue an AI design brief (needs a successful audit; refused for locked prospects) |
+| GET | `/designs`, `/designs/{id}` | all roles | Design projects with every brief version, issues, tokens and cost |
+| POST | `/designs/briefs/{id}/review` | OWNER, ADMIN, REVIEWER | Approve (valid drafts only) or reject a brief version |
 | GET | `/industries` | all roles | Industry vocabulary |
 | GET | `/health/live`, `/health/ready` | anyone | Liveness / dependency readiness |
 

@@ -72,7 +72,7 @@ def test_forged_access_token_rejected(harness: Harness) -> None:
         "wrong-key-wrong-key-wrong-key-wrong-key",
         algorithm="HS256",
     )  # fmt: skip
-    harness.client.cookies.set("wf_at", forged)
+    harness.set_cookie("wf_at", forged)
     r = harness.client.get("/api/v1/users")
     assert r.status_code == 401
     assert r.json()["code"] == "invalid_token"
@@ -88,7 +88,7 @@ def test_alg_none_token_rejected(harness: Harness) -> None:
     token = (
         f"{b64({'alg': 'none', 'typ': 'JWT'})}.{b64({'typ': 'access', 'sid': str(uuid.uuid4())})}."
     )
-    harness.client.cookies.set("wf_at", token)
+    harness.set_cookie("wf_at", token)
     assert harness.client.get("/api/v1/auth/me").status_code == 401
 
 

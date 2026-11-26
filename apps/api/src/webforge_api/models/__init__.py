@@ -8,7 +8,7 @@ from webforge_api.models.compliance import (
     PolicyConfig,
     Suppression,
 )
-from webforge_api.models.designs import Asset, DesignPage, DesignProject
+from webforge_api.models.designs import Asset, DesignBrief, DesignPage, DesignProject
 from webforge_api.models.identity import ActivityLog, MfaRecoveryCode, User, UserSession
 from webforge_api.models.ops import ApiUsage, Job, SystemControl
 from webforge_api.models.outreach import EmailEvent, OutreachMessage, Reply
@@ -32,6 +32,7 @@ __all__ = [
     "Campaign",
     "ComplianceAssessment",
     "ConsentRecord",
+    "DesignBrief",
     "DesignPage",
     "DesignProject",
     "DomainVerification",

@@ -6,14 +6,56 @@
 | 01 | Database + auth | Complete | Disabled (rejected by config) |
 | 02 | Source adapters | Complete | Disabled (rejected by config) |
 | 03 | Discovery | Complete | Disabled (rejected by config) |
-| 04 | Website audit | **Complete** | Disabled (rejected by config) |
-| 05 | AI intelligence | Not started | Disabled |
+| 04 | Website audit | Complete | Disabled (rejected by config) |
+| 05 | AI intelligence | **Complete** (mock provider; live Claude calls not run) | Disabled (rejected by config) |
 | 06 | Design generation | Not started | Disabled |
 | 07 | Validation | Not started | Disabled |
 | 08 | Proposals | Not started | Disabled |
 | 09 | Email/compliance | Not started | Sandbox only |
 | 10 | Dashboard/orchestration | Not started | Paused |
 | 11 | Production | Not started | Only approved category |
+
+## Phase 05 — Structured AI design briefs (2026-11-26)
+
+### Delivered
+- **Brief schema `brief-1`** (`design/brief_schema.py`): strict Pydantic models (no extra fields) for summary,
+  facts used, assumptions, audience hypotheses, direction, hex palette, allowed font stacks, industry trust-page
+  label, exactly six pages (home, services, about, trust, inquiry, contact) with typed blocks, image briefs and
+  accessibility notes. Each section is labelled `verified_fact` (must cite fact IDs), `proposed_copy` or
+  `assumption`. The API schema sent to Claude is generated from the same models.
+- **Integrity checks** (`design/integrity.py`): unknown fact IDs, uncited facts, invented testimonials/quotes,
+  awards, certifications, years in business, statistics, prices, superlatives, phone numbers, emails, staff
+  names, misplaced forms, WCAG 4.5:1 text contrast, instruction-like text.
+- **Providers** (`services/ai.py`): official `anthropic` SDK with strict JSON output, no tools, server-side
+  refusal fallbacks and mapped errors (retryable vs permanent); offline mock provider (default; refused in
+  production).
+- **Generation job** `design.brief` on queue `design` (`services/briefs.py`): minimal fenced context (independent
+  facts + audit finding titles), worst-case budget reservation under an advisory lock, input-token cap, bounded
+  repair loop, versioned `design_briefs` rows (migration `0004`) with facts snapshot, issues, attempts, tokens and
+  cost; failures go to `NEEDS_REVIEW` and the prospect to `HUMAN_REVIEW`.
+- **API**: `POST /prospects/{id}/brief`, `GET /designs`, `GET /designs/{id}`, `POST /designs/briefs/{id}/review`.
+- **UI**: "Design brief" card on prospects; brief page with six screens, content labels, sources, palette,
+  failed checks, cost and approve/reject. Docs: ADR 0006, `.env.example`, `docs/api/README.md`, `docs/versions.md`.
+
+### Verification evidence (local run, 2026-11-26)
+
+| Check | Result |
+|---|---|
+| API tests (real PostgreSQL + Redis) | PASS — 398 passed (33 new: schema, integrity, injection, repair, budget 0 / exhausted, cost accounting, 429/500/529/401/400/unreachable via a local fake Messages API server, mock refused in production, roles) |
+| Migration 0004 upgrade/downgrade round trip | PASS |
+| Lint / strict types (API 117 files, dashboard) | PASS |
+| Dashboard unit tests / production build | PASS — 45 passed / build OK |
+| Docker stack — 8 services healthy | PASS |
+| Smoke / isolation proof | PASS — 15/15, 8/8 |
+| Browser E2E (incl. generate and approve a mock brief) | PASS — 24/24 |
+| Error log lines | 0 |
+
+Not run: a real Claude API call (no API key supplied, and paid calls need owner authorization). To enable:
+set `AI_PROVIDER=anthropic`, `ANTHROPIC_API_KEY` (server-side only) and a non-zero `AI_DAILY_BUDGET_MINOR`.
+
+### Notes
+- The `anthropic` 2.x SDK installs `httpx2`, which Starlette's TestClient now uses; three cookie-replacement tests
+  were updated to use a `Harness.set_cookie` helper (behaviour under test unchanged).
 
 ## Phase 04 — Isolated website audit engine (2026-11-26)
 

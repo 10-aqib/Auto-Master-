@@ -27,6 +27,7 @@ from webforge_api.net.safe_fetch import FetchPolicy, SafeFetcher
 from webforge_api.security.crypto import Crypto
 from webforge_api.security.rate_limit import RateLimiter, RedisRateLimiter
 from webforge_api.services import jobs as jobqueue
+from webforge_api.services.ai import AIError, BriefModel, build_model
 from webforge_api.services.audits import BrowserClient
 from webforge_api.services.job_handlers import HANDLERS, JobContext, JobDeferred
 from webforge_api.services.jobs import JobError
@@ -38,7 +39,7 @@ from webforge_api.sources.website import WebsiteVerifier
 from webforge_api.storage import Storage, build_storage
 
 log = get_logger("webforge_api.worker")
-ALL_QUEUES = ["discovery", "verification", "qualification", "audit"]
+ALL_QUEUES = ["discovery", "verification", "qualification", "audit", "design"]
 
 
 class Runtime:
@@ -55,6 +56,7 @@ class Runtime:
         handlers: dict[str, Callable[[JobContext, Job], dict[str, Any] | None]] | None = None,
         storage: Storage | None = None,
         browser: BrowserClient | None = None,
+        ai: BriefModel | None = None,
     ) -> None:
         self.settings = settings
         self.engine = build_engine(settings)
@@ -76,6 +78,12 @@ class Runtime:
         self.handlers = handlers or dict(HANDLERS)
         self.storage = storage or build_storage(settings)
         self.browser = browser or BrowserClient(settings.browser_service_url)
+        self.ai = ai
+        if self.ai is None:
+            try:
+                self.ai = build_model(settings)
+            except AIError as exc:  # design jobs fail with this code; other queues keep working
+                log.warning("ai_provider_unavailable", code=exc.code)
 
     def context(self, db: Any) -> JobContext:
         now = self.clock()
@@ -97,6 +105,7 @@ class Runtime:
             places=places,
             storage=self.storage,
             browser=self.browser,
+            ai=self.ai,
         )
 
     def close(self) -> None:

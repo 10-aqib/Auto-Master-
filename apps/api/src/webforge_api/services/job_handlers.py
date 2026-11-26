@@ -20,7 +20,9 @@ from webforge_api.models import Campaign, ExternalPlaceIdentifier, Job, Prospect
 from webforge_api.models.enums import CampaignStatus, ProspectState
 from webforge_api.security.crypto import Crypto
 from webforge_api.services import controls
+from webforge_api.services.ai import AIError, BriefModel
 from webforge_api.services.audits import AUDIT, AuditDeps, BrowserClient, run_audit
+from webforge_api.services.briefs import BriefDeps, generate_brief
 from webforge_api.services.campaigns import DISCOVERY_VERIFY, QUALIFY
 from webforge_api.services.context import RequestMeta
 from webforge_api.services.errors import ServiceError, UnavailableError
@@ -48,6 +50,7 @@ class JobContext:
     places: PlacesService
     storage: Storage | None = None
     browser: BrowserClient | None = None
+    ai: BriefModel | None = None
 
 
 def _meta(job: Job) -> RequestMeta:
@@ -264,7 +267,25 @@ def handle_audit(ctx: JobContext, job: Job) -> dict[str, Any]:
     }
 
 
+def handle_brief(ctx: JobContext, job: Job) -> dict[str, Any]:
+    if controls.is_paused(ctx.db, ctx.settings):
+        raise JobDeferred("system paused")
+    if ctx.ai is None:
+        raise JobError("ai_not_configured", "Design worker has no AI provider.")
+    actor = job.payload.get("requested_by")
+    try:
+        row = generate_brief(
+            BriefDeps(ctx.db, ctx.settings, ctx.crypto, ctx.ai, ctx.now),
+            uuid.UUID(job.payload["prospect_id"]),
+            uuid.UUID(actor) if actor else None,
+        )
+    except AIError as exc:
+        raise JobError(exc.code, str(exc), retryable=exc.retryable) from exc
+    return {"brief_id": str(row.id), "version": row.version, "status": row.status}
+
+
 HANDLERS = {
+    "design.brief": handle_brief,
     "prospect.audit": handle_audit,
     "discovery.search": handle_search,
     "discovery.verify": handle_verify,

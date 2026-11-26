@@ -4,7 +4,16 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, ForeignKey, Integer, String, Text, UniqueConstraint, text
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -81,3 +90,48 @@ class Asset(UUIDPrimaryKey, Timestamps, Base):
     )
     attribution_text: Mapped[str | None] = mapped_column(Text)
     expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+
+
+class DesignBrief(UUIDPrimaryKey, Base):
+    """One generated brief version. Regeneration adds a version; older versions are kept."""
+
+    __tablename__ = "design_briefs"
+
+    design_project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("design_projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    # DRAFT -> APPROVED | REJECTED; NEEDS_REVIEW when validation failed after repairs.
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    brief: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    raw_output_sha256: Mapped[str | None] = mapped_column(String(64))
+    schema_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    model: Mapped[str] = mapped_column(String(100), nullable=False)
+    facts_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    validation_issues: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, default=list, server_default="[]", nullable=False
+    )
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False)
+    input_tokens: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    output_tokens: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    cost_milliminor: Mapped[int] = mapped_column(
+        BigInteger, default=0, server_default="0", nullable=False
+    )
+    review_notes: Mapped[str | None] = mapped_column(Text)
+    reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT")
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("design_project_id", "version"),
+        CheckConstraint(
+            "status IN ('DRAFT', 'APPROVED', 'REJECTED', 'NEEDS_REVIEW')", name="brief_status"
+        ),
+    )

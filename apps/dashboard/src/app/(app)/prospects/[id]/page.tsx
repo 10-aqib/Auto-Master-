@@ -6,6 +6,7 @@ import { ProspectReview } from "@/components/prospect-review";
 import { Alert, Card, formatDate } from "@/components/ui";
 import { apiServer, requireActiveSession } from "@/lib/api-server";
 import { COMPONENT_LABEL, type Audit, type ProspectDetail } from "@/lib/discovery";
+import { type DesignProject } from "@/lib/designs";
 import { reasonText } from "@/lib/sources";
 
 export const metadata = { title: "Prospect · WEBFORGE AI" };
@@ -13,9 +14,10 @@ export const metadata = { title: "Prospect · WEBFORGE AI" };
 export default async function ProspectPage({ params }: PageProps<"/prospects/[id]">) {
   const { id } = await params;
   const { user } = await requireActiveSession();
-  const [detail, audits] = await Promise.all([
+  const [detail, audits, designs] = await Promise.all([
     apiServer<ProspectDetail>(`/prospects/${id}`),
     apiServer<Audit[]>(`/audits?prospect_id=${id}`),
+    apiServer<DesignProject[]>(`/designs?prospect_id=${id}`),
   ]);
   if (!detail.ok) return <Alert>{detail.error.message}</Alert>;
   const { prospect: p, facts, verifications, place_ids, campaigns, qualifications, merges } = detail.data;
@@ -117,6 +119,42 @@ export default async function ProspectPage({ params }: PageProps<"/prospects/[id
         ) : (
           <p className="text-sm text-muted">
             Not audited yet. Audits run in an isolated browser and never submit forms.
+          </p>
+        )}
+      </Card>
+
+      <Card
+        title="Design brief"
+        actions={
+          canAdmin ? (
+            <ActionButton
+              path={`/prospects/${p.id}/brief`}
+              label="Generate brief"
+              disabledReason={
+                audits.ok && audits.data.some((a) => a.status === "SUCCEEDED")
+                  ? undefined
+                  : "Needs a successful audit first."
+              }
+            />
+          ) : undefined
+        }
+      >
+        {designs.ok && designs.data.length ? (
+          <ul className="grid gap-2 text-sm">
+            {designs.data.map((d) => (
+              <li key={d.id} className="flex flex-wrap items-center gap-2">
+                <Badge value={d.status} />
+                <Link href={`/designs/${d.id}`} className="text-accent hover:underline">
+                  Version {d.current_version}
+                </Link>
+                <span className="text-muted">{d.model}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted">
+            No brief yet. Briefs use only verified facts and audit findings, and need review before any
+            concept is built.
           </p>
         )}
       </Card>

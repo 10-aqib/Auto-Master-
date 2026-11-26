@@ -22,6 +22,8 @@ const BY_VALUE: Record<string, keyof typeof TONES> = {
   HUMAN_REVIEW: "warn",
   QUALIFYING: "warn",
   DRAFT: "neutral",
+  APPROVED: "good",
+  NEEDS_REVIEW: "warn",
   FAILED: "bad",
   DEAD: "bad",
   REJECTED: "bad",

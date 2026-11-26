@@ -295,6 +295,49 @@ try {
     await shot(page, "13-jobs");
   });
 
+  await check("owner generates and approves a mock AI brief for an audited fixture prospect", async () => {
+    // Offline fixture sites never pass a real audit here, so seed one audited test prospect directly.
+    const sql = `
+      WITH p AS (
+        INSERT INTO prospects (id, business_name, verified_domain, website_url, industry, state)
+        VALUES (gen_random_uuid(), 'E2E Fixture Bakery', 'bakery.example.test', 'https://bakery.example.test/',
+                'bakery', 'AUDITED') RETURNING id),
+      s AS (
+        INSERT INTO prospect_sources (id, prospect_id, source_type, source_name, source_url, fact_field, safe_value,
+                                      retrieved_at, confidence, verification_method, is_independent)
+        SELECT gen_random_uuid(), id, 'OFFICIAL_WEBSITE', 'Official website', 'https://bakery.example.test/',
+               'business_name', 'E2E Fixture Bakery', now(), 0.9, 'e2e_fixture', true FROM p)
+      INSERT INTO website_audits (id, prospect_id, url, status, audit_version, started_at, finished_at, scores)
+      SELECT gen_random_uuid(), id, 'https://bakery.example.test/', 'SUCCEEDED', 'audit-1', now(), now(),
+             '{"overall": 61}'::jsonb FROM p RETURNING prospect_id;`;
+    const out = execFileSync(
+      "docker",
+      ["compose", "exec", "-T", "postgres", "psql", "-U", "webforge", "-d", "webforge", "-tA", "-v", "ON_ERROR_STOP=1"],
+      { input: sql },
+    ).toString();
+    const prospectId = out.match(/[0-9a-f-]{36}/)?.[0];
+    if (!prospectId) throw new Error(`seed failed: ${out}`);
+    await page.goto(`${BASE}/prospects/${prospectId}`);
+    await page.getByRole("heading", { name: "E2E Fixture Bakery" }).waitFor();
+    await page.getByRole("button", { name: "Generate brief" }).click();
+    const deadline = Date.now() + 60_000;
+    for (;;) {
+      await page.reload();
+      const link = page.getByRole("link", { name: "Version 1" });
+      if ((await link.count()) && (await page.getByText("mock-brief-model-1").count())) break;
+      if (Date.now() > deadline) throw new Error("brief job did not finish");
+      await page.waitForTimeout(2000);
+    }
+    await page.getByRole("link", { name: "Version 1" }).click();
+    await page.getByRole("heading", { name: "Design brief" }).waitFor();
+    await page.getByText("Six screens").waitFor();
+    await page.getByText("Independent redesign concept plan.").waitFor();
+    await shot(page, "14-design-brief");
+    await page.getByLabel("Review notes").fill("E2E approval");
+    await page.getByRole("button", { name: "Approve brief" }).click();
+    await page.getByText("approved", { exact: true }).waitFor();
+  });
+
   await check("no browser console errors", async () => {
     const real = errors.filter((e) => !/401|403|409|Failed to load resource/.test(e));
     if (real.length) throw new Error(real.join(" | "));

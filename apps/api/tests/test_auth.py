@@ -85,7 +85,7 @@ def test_logout_revokes_session_and_clears_cookies(harness: Harness) -> None:
     assert r.status_code == 204
     assert harness.cookie("wf_at") is None
     # Replaying the old access token fails: the session row is revoked.
-    harness.client.cookies.set("wf_at", access or "")
+    harness.set_cookie("wf_at", access or "")
     assert harness.client.get(ME).json()["code"] == "session_revoked"
 
 
@@ -136,7 +136,7 @@ def test_refresh_reuse_after_grace_revokes_session(harness: Harness) -> None:
     assert harness.client.post("/api/v1/auth/refresh").status_code == 200
     harness.clock.advance(seconds=31)
 
-    harness.client.cookies.set("wf_rt", stolen or "")
+    harness.set_cookie("wf_rt", stolen or "")
     r = harness.client.post("/api/v1/auth/refresh")
     assert r.status_code == 401
     assert r.json()["code"] == "refresh_token_reused"
@@ -155,7 +155,7 @@ def test_concurrent_refresh_within_grace_does_not_revoke(harness: Harness) -> No
     harness.login(user.email)
     original = harness.cookie("wf_rt")
     assert harness.client.post("/api/v1/auth/refresh").status_code == 200
-    harness.client.cookies.set("wf_rt", original or "")
+    harness.set_cookie("wf_rt", original or "")
     r = harness.client.post("/api/v1/auth/refresh")
     assert r.status_code == 200
     assert not any(c.startswith("wf_rt=") for c in r.headers.get_list("set-cookie"))

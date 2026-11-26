@@ -46,6 +46,7 @@ class EmailProvider(StrEnum):
 
 class AIProvider(StrEnum):
     ANTHROPIC = "anthropic"
+    MOCK = "mock"  # deterministic offline generator for development and CI; refused in production
 
 
 class ConfigurationError(RuntimeError):
@@ -136,12 +137,17 @@ class Settings(BaseSettings):
     account_lockout_minutes: PositiveInt = 15
 
     # AI
-    ai_provider: AIProvider = AIProvider.ANTHROPIC
+    ai_provider: AIProvider = AIProvider.MOCK
     anthropic_api_key: SecretStr = SecretStr("")
-    anthropic_model: str = ""
-    ai_max_input_tokens_per_job: NonNegativeInt = 0
-    ai_max_output_tokens_per_job: NonNegativeInt = 0
+    # Empty = the default model chosen in code (see services/ai.py, checked 2026-11-26).
+    anthropic_model: str = Field(default="", pattern=r"^$|^claude-[a-z0-9-]+$")
+    ai_effort: Literal["low", "medium", "high", "xhigh", "max"] = "high"
+    ai_max_input_tokens_per_job: Annotated[int, Field(gt=0, le=200_000)] = 30_000
+    ai_max_output_tokens_per_job: Annotated[int, Field(gt=0, le=64_000)] = 16_000
+    # Spend cap per UTC day in minor units (USD cents). 0 blocks paid AI calls (fail closed).
     ai_daily_budget_minor: NonNegativeInt = 0
+    ai_request_timeout_seconds: Annotated[int, Field(gt=0, le=900)] = 300
+    ai_max_repair_attempts: Annotated[int, Field(ge=0, le=3)] = 2
 
     # Google Places
     google_maps_api_key: SecretStr = SecretStr("")

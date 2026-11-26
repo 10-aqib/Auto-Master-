@@ -22,6 +22,7 @@ dependencies = [
     "httpcore==1.0.9",
     "idna==3.20",
     "boto3==1.44.12",
+    "anthropic==2.14.0",
 ]
 
 [dependency-groups]
@@ -58,6 +59,10 @@ ignore = []
 "src/webforge_api/services/audits.py" = ["E501"]
 "src/webforge_api/services/job_handlers.py" = ["E501"]
 "src/webforge_api/egress_proxy.py" = ["E501"]
+"src/webforge_api/services/ai.py" = ["E501"]
+"src/webforge_api/services/briefs.py" = ["E501"]
+"src/webforge_api/api/v1/designs.py" = ["E501"]
+"src/webforge_api/design/*.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.13"

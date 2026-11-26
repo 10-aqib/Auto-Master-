@@ -28,6 +28,8 @@ Image digests are not pinned yet; digest pinning is a Phase 11 production-harden
 | pydantic | 2.14.4 |
 | pydantic-settings | 2.16.3 |
 | structlog | 26.1.0 |
+| anthropic (Claude API SDK, Phase 05) | 2.14.0 |
+| httpx2 (transitive via anthropic; also used by Starlette TestClient) | 2.16.2 |
 | psycopg[binary] | 3.3.9 |
 | redis | 8.2.0 |
 | sqlalchemy | 2.1.9 |
@@ -77,3 +79,9 @@ ESLint 9 is used because `eslint-config-next` 16.4.6 is generated against it.
 | actions/checkout | v7.0.1 | `3d3c42e5aac5ba805825da76410c181273ba90b1` |
 | actions/setup-node | v6.5.0 | `249970729cb0ef3589644e2896645e5dc5ba9c38` |
 | astral-sh/setup-uv | v8.3.2 | `11f9893b081a58869d3b5fccaea48c9e9e46f990` |
+
+## AI model (Phase 05)
+
+Default model and prices checked 2026-11-26: `DEFAULT_MODEL` and `PRICES_MINOR_PER_MTOK` in
+`apps/api/src/webforge_api/services/ai.py` (input/output USD per million tokens). Unknown models are priced at
+the highest listed rate. Override the model with `ANTHROPIC_MODEL`; re-check prices before raising budgets.

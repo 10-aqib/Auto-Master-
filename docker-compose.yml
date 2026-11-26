@@ -142,14 +142,14 @@ services:
       timeout: 3s
       retries: 5
 
-  # Background jobs: discovery, website verification, qualification.
+  # Background jobs: discovery, website verification, qualification, AI design briefs.
   worker:
     <<: *hardening
     build:
       context: apps/api
       dockerfile: ../../infrastructure/docker/api.Dockerfile
     image: webforge/api:dev
-    command: ["python", "-m", "webforge_api.worker", "--queues", "discovery,verification,qualification"]
+    command: ["python", "-m", "webforge_api.worker", "--queues", "discovery,verification,qualification,design"]
     env_file: [.env]
     read_only: true
     tmpfs: [/tmp]

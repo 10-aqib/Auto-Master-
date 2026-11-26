@@ -114,10 +114,8 @@ def _enable(h: Harness, csrf: dict[str, str], key: str, review: bool = True) -> 
     assert r.status_code == 200, r.text
 
 
-def _search(
-    h: Harness, csrf: dict[str, str], source: str = "google_places", **kw: Any
-) -> httpx.Response:
-    response: httpx.Response = h.client.post(
+def _search(h: Harness, csrf: dict[str, str], source: str = "google_places", **kw: Any) -> Any:
+    response: Any = h.client.post(
         "/api/v1/places/search",
         json={"source_key": source, "text_query": "bakeries in Lahore", "region_code": "PK", **kw},
         headers=csrf,

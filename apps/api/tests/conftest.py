@@ -211,6 +211,14 @@ class Harness:
         token: str = body["csrf_token"]
         return token
 
+    def set_cookie(self, name: str, value: str) -> None:
+        """Replace a cookie the server set (avoids duplicate jar entries with different domains)."""
+        jar = self.client.cookies
+        for c in list(jar.jar):
+            if c.name == name:
+                jar.jar.clear(c.domain, c.path, c.name)
+        jar.set(name, value)
+
     def cookie(self, name: str) -> str | None:
         value: str | None = self.client.cookies.get(name)
         return value

@@ -68,7 +68,7 @@ def test_login_with_mfa_requires_second_factor(harness: Harness) -> None:
     assert r.json()["session"]["state"] == "active"
     assert harness.cookie("wf_at") != pending_access
     # The pending session was replaced (no session fixation).
-    harness.client.cookies.set("wf_at", pending_access or "")
+    harness.set_cookie("wf_at", pending_access or "")
     assert harness.client.get("/api/v1/auth/me").status_code == 401
 
 
