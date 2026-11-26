@@ -57,6 +57,10 @@ in non-production environments only.
 | POST | `/prospects/{id}/brief` | OWNER, ADMIN | Queue an AI design brief (needs a successful audit; refused for locked prospects) |
 | GET | `/designs`, `/designs/{id}` | all roles | Design projects with every brief version, issues, tokens and cost |
 | POST | `/designs/briefs/{id}/review` | OWNER, ADMIN, REVIEWER | Approve (valid drafts only) or reject a brief version |
+| POST | `/designs/{id}/render` | OWNER, ADMIN | Queue a deterministic six-page render of the latest approved brief |
+| GET | `/designs/renders/{id}/pages/{slug}` | all roles | Concept page HTML, served with a `sandbox` CSP and integrity-checked |
+| POST | `/designs/renders/{id}/review` | OWNER, ADMIN, REVIEWER | Approve (becomes active) or reject a new render |
+| POST | `/designs/renders/{id}/activate` | OWNER, ADMIN | Re-activate an earlier approved render (rollback) |
 | GET | `/industries` | all roles | Industry vocabulary |
 | GET | `/health/live`, `/health/ready` | anyone | Liveness / dependency readiness |
 

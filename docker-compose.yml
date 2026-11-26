@@ -142,7 +142,7 @@ services:
       timeout: 3s
       retries: 5
 
-  # Background jobs: discovery, website verification, qualification, AI design briefs.
+  # Background jobs: discovery, website verification, qualification, AI briefs and concept rendering.
   worker:
     <<: *hardening
     build:
@@ -153,6 +153,8 @@ services:
     env_file: [.env]
     read_only: true
     tmpfs: [/tmp]
+    volumes:
+      - artifacts:/data/artifacts
     cap_drop: [ALL]
     networks: [backend, frontend]
     healthcheck:

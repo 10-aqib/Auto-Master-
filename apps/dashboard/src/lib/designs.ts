@@ -73,6 +73,7 @@ export interface Brief {
 export interface DesignDetail {
   project: DesignProject;
   briefs: Brief[];
+  renders: Render[];
 }
 
 export const KIND_LABEL: Record<ContentKind, string> = {
@@ -84,4 +85,49 @@ export const KIND_LABEL: Record<ContentKind, string> = {
 /** Cost in US dollars from thousandths of a cent. */
 export function formatCost(milliminor: number): string {
   return "$" + (milliminor / 100_000).toFixed(4);
+}
+
+export const PAGE_SLUGS = ["home", "services", "about", "trust", "inquiry", "contact"] as const;
+
+/**
+ * Same policy as next.config.ts. The sandbox keeps the dashboard origin only so in-frame links carry the
+ * session cookie; scripts, forms, popups and top navigation stay blocked (and the CSP allows no script).
+ */
+export const CONCEPT_CSP = [
+  "sandbox allow-same-origin",
+  "default-src 'none'",
+  "style-src 'unsafe-inline'",
+  "img-src data:",
+  "form-action 'none'",
+  "base-uri 'none'",
+  "frame-ancestors 'self'",
+].join("; ");
+
+export interface RenderPage {
+  slug: string;
+  title: string;
+  key: string;
+  sha256: string;
+  bytes: number;
+}
+
+export interface Render {
+  id: string;
+  design_project_id: string;
+  brief_id: string;
+  version: number;
+  renderer_version: string;
+  status: "RENDERED" | "APPROVED" | "REJECTED" | "FAILED";
+  is_active: boolean;
+  variant: string;
+  manifest: {
+    pages: RenderPage[];
+    assets: { id: string; key: string; license: string; sha256: string }[];
+    brief_version: number;
+    site_sha256: string;
+  };
+  scan_issues: { code: string; detail: string; page?: string }[];
+  review_notes: string | null;
+  reviewed_at: string | null;
+  created_at: string;
 }

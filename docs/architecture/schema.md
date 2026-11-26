@@ -65,6 +65,8 @@ erDiagram
   prospects ||--o{ design_projects : "RESTRICT"
   design_projects ||--o{ design_pages : "CASCADE"
   design_projects ||--o{ design_briefs : "CASCADE (Phase 05, versioned AI briefs)"
+  design_projects ||--o{ design_renders : "CASCADE (Phase 06, versioned renders, one active)"
+  design_briefs ||--o{ design_renders : "RESTRICT"
   design_projects ||--o{ proposals : "RESTRICT"
   proposals ||--o{ preview_deployments : "token hash only"
   prospects ||--o{ compliance_assessments : "RESTRICT"

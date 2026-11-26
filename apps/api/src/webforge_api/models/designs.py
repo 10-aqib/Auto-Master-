@@ -8,6 +8,7 @@ from sqlalchemy import (
     BigInteger,
     CheckConstraint,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -133,5 +134,48 @@ class DesignBrief(UUIDPrimaryKey, Base):
         UniqueConstraint("design_project_id", "version"),
         CheckConstraint(
             "status IN ('DRAFT', 'APPROVED', 'REJECTED', 'NEEDS_REVIEW')", name="brief_status"
+        ),
+    )
+
+
+class DesignRender(UUIDPrimaryKey, Base):
+    """One deterministic render of an approved brief into six static pages."""
+
+    __tablename__ = "design_renders"
+
+    design_project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("design_projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    brief_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("design_briefs.id", ondelete="RESTRICT"), nullable=False
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    renderer_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    is_active: Mapped[bool] = mapped_column(
+        default=False, server_default=text("false"), nullable=False
+    )
+    variant: Mapped[str] = mapped_column(String(32), nullable=False)
+    manifest: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    scan_issues: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, default=list, server_default="[]", nullable=False
+    )
+    review_notes: Mapped[str | None] = mapped_column(Text)
+    reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("design_project_id", "version"),
+        CheckConstraint(
+            "status IN ('RENDERED','APPROVED','REJECTED','FAILED')", name="design_render_status"
+        ),
+        Index(
+            "uq_design_renders_one_active",
+            "design_project_id",
+            unique=True,
+            postgresql_where=text("is_active"),
         ),
     )

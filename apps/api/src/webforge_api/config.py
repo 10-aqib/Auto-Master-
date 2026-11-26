@@ -149,6 +149,12 @@ class Settings(BaseSettings):
     ai_request_timeout_seconds: Annotated[int, Field(gt=0, le=900)] = 300
     ai_max_repair_attempts: Annotated[int, Field(ge=0, le=3)] = 2
 
+    # Concept renderer (Phase 06): who prepared the concept, shown on every page as plain text.
+    concept_author_name: Annotated[str, Field(min_length=1, max_length=120)] = "Muhammad Aqib"
+    concept_author_url: Annotated[
+        str, Field(max_length=200, pattern=r"^$|^https://[A-Za-z0-9.-]+(/[A-Za-z0-9._~/-]*)?$")
+    ] = "https://aqibkhn.space"
+
     # Google Places
     google_maps_api_key: SecretStr = SecretStr("")
     google_places_api_enabled: bool = False

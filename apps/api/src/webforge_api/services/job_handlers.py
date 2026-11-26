@@ -30,6 +30,7 @@ from webforge_api.services.jobs import JobCancelled, JobError, enqueue
 from webforge_api.services.places import PlacesService
 from webforge_api.services.prospect_state import LOCKED, transition
 from webforge_api.services.qualification import qualify
+from webforge_api.services.renders import RenderDeps, render_project
 from webforge_api.storage import Storage
 
 
@@ -284,7 +285,22 @@ def handle_brief(ctx: JobContext, job: Job) -> dict[str, Any]:
     return {"brief_id": str(row.id), "version": row.version, "status": row.status}
 
 
+def handle_render(ctx: JobContext, job: Job) -> dict[str, Any]:
+    if controls.is_paused(ctx.db, ctx.settings):
+        raise JobDeferred("system paused")
+    if ctx.storage is None:
+        raise JobError("misconfigured", "Design worker has no storage.")
+    actor = job.payload.get("requested_by")
+    row = render_project(
+        RenderDeps(ctx.db, ctx.settings, ctx.crypto, ctx.storage, ctx.now),
+        uuid.UUID(job.payload["design_project_id"]),
+        uuid.UUID(actor) if actor else None,
+    )
+    return {"render_id": str(row.id), "version": row.version, "status": row.status}
+
+
 HANDLERS = {
+    "design.render": handle_render,
     "design.brief": handle_brief,
     "prospect.audit": handle_audit,
     "discovery.search": handle_search,

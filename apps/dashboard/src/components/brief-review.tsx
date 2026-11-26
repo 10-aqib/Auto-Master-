@@ -6,18 +6,30 @@ import { useState } from "react";
 import { Alert, Button, Field } from "@/components/ui";
 import { api } from "@/lib/api-client";
 
-/** Approve or reject one brief version. Only valid drafts can be approved (enforced by the API). */
-export function BriefReview({ id, approvable }: { id: string; approvable: boolean }) {
+/** Approve or reject one brief or render version. The API enforces which versions can be approved. */
+export function ReviewForm({
+  id,
+  path,
+  subject,
+  approvable,
+  blockedReason,
+}: {
+  id: string;
+  path: string;
+  subject: "brief" | "concept";
+  approvable: boolean;
+  blockedReason: string;
+}) {
   const router = useRouter();
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function decide(approve: boolean) {
-    if (!approve && !window.confirm("Reject this brief version?")) return;
+    if (!approve && !window.confirm(`Reject this ${subject} version?`)) return;
     setBusy(true);
     setError(null);
-    const r = await api(`/designs/briefs/${id}/review`, "POST", { approve, notes });
+    const r = await api(path, "POST", { approve, notes });
     setBusy(false);
     if (!r.ok) return setError(r.error.message);
     router.refresh();
@@ -38,20 +50,16 @@ export function BriefReview({ id, approvable }: { id: string; approvable: boolea
           type="button"
           busy={busy}
           disabled={!approvable}
-          title={approvable ? undefined : "Only drafts that passed every check can be approved."}
+          title={approvable ? undefined : blockedReason}
           onClick={() => decide(true)}
         >
-          Approve brief
+          Approve {subject}
         </Button>
         <Button type="button" variant="danger" busy={busy} onClick={() => decide(false)}>
-          Reject brief
+          Reject {subject}
         </Button>
       </div>
-      {!approvable && (
-        <p className="text-xs text-muted">
-          This version has open issues and cannot be approved. Regenerate it or reject it.
-        </p>
-      )}
+      {!approvable && <p className="text-xs text-muted">{blockedReason}</p>}
       {error && <Alert>{error}</Alert>}
     </div>
   );

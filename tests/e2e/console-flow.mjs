@@ -338,6 +338,50 @@ try {
     await page.getByText("approved", { exact: true }).waitFor();
   });
 
+  await check("owner renders a six-screen concept and previews it in a sandboxed frame", async () => {
+    await page.getByRole("button", { name: "Render concept" }).click();
+    const deadline = Date.now() + 60_000;
+    for (;;) {
+      await page.reload();
+      if (await page.getByText("Concept v1").count()) break;
+      if (Date.now() > deadline) throw new Error("render job did not finish");
+      await page.waitForTimeout(2000);
+    }
+    const tabs = page.getByRole("tablist", { name: "Concept pages" }).getByRole("tab");
+    if ((await tabs.count()) !== 6) throw new Error(`expected 6 page tabs, got ${await tabs.count()}`);
+    const frameEl = page.locator("iframe[title^='Concept preview']");
+    if ((await frameEl.getAttribute("sandbox")) !== "allow-same-origin") throw new Error("preview iframe is not sandboxed");
+    const frame = page.frameLocator("iframe[title^='Concept preview']");
+    await frame.getByText("Independent redesign concept — not the official website").first().waitFor();
+    // In-frame navigation works; the demo form cannot submit anything.
+    await frame.getByRole("link", { name: "Make an Inquiry" }).first().click();
+    await frame.getByText("Demo only. This form does not send, save or collect anything.").waitFor();
+    await frame.getByLabel("Your name").fill("Test Person");
+    const conceptFrame = () => page.frames().find((f) => f.url().includes("/api/concepts/"));
+    const before = conceptFrame()?.url();
+    await frame.getByRole("button", { name: "Send enquiry" }).click();
+    await frame.getByLabel("Your name").press("Enter");
+    await page.waitForTimeout(500);
+    await frame.getByLabel("Your name").waitFor();
+    const after = conceptFrame()?.url();
+    if (!before?.endsWith("/inquiry") || before !== after) throw new Error(`demo form navigated: ${before} -> ${after}`);
+    await page.getByRole("button", { name: "Mobile", exact: true }).click();
+    await shot(page, "15-concept-mobile");
+    // Direct load at phone width: no horizontal overflow.
+    const phone = await ctx.newPage();
+    await phone.setViewportSize({ width: 390, height: 844 });
+    const href = await frameEl.getAttribute("src");
+    const res = await phone.goto(`${BASE}${href}`);
+    const csp = res?.headers()["content-security-policy"] ?? "";
+    if (!csp.startsWith("sandbox allow-same-origin;") || !csp.includes("form-action 'none'") || /allow-scripts/.test(csp)) throw new Error(`csp: ${csp}`);
+    const sw = await phone.evaluate(() => document.documentElement.scrollWidth);
+    if (sw > 390) throw new Error(`horizontal overflow at 390px: ${sw}`);
+    await phone.close();
+    await page.getByRole("button", { name: "Approve concept" }).click();
+    await page.getByText("active", { exact: true }).waitFor();
+    await shot(page, "16-concept-approved");
+  });
+
   await check("no browser console errors", async () => {
     const real = errors.filter((e) => !/401|403|409|Failed to load resource/.test(e));
     if (real.length) throw new Error(real.join(" | "));

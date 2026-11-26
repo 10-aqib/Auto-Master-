@@ -851,11 +851,19 @@
           },
           "project": {
             "$ref": "#/components/schemas/DesignProjectOut"
+          },
+          "renders": {
+            "items": {
+              "$ref": "#/components/schemas/RenderOut"
+            },
+            "title": "Renders",
+            "type": "array"
           }
         },
         "required": [
           "project",
-          "briefs"
+          "briefs",
+          "renders"
         ],
         "title": "DesignDetail",
         "type": "object"
@@ -2030,6 +2038,103 @@
           "recovery_codes"
         ],
         "title": "RecoveryCodesResponse",
+        "type": "object"
+      },
+      "RenderOut": {
+        "properties": {
+          "brief_id": {
+            "format": "uuid",
+            "title": "Brief Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "design_project_id": {
+            "format": "uuid",
+            "title": "Design Project Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "manifest": {
+            "additionalProperties": true,
+            "title": "Manifest",
+            "type": "object"
+          },
+          "renderer_version": {
+            "title": "Renderer Version",
+            "type": "string"
+          },
+          "review_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Notes"
+          },
+          "reviewed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed At"
+          },
+          "scan_issues": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Scan Issues",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "variant": {
+            "title": "Variant",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "design_project_id",
+          "brief_id",
+          "version",
+          "renderer_version",
+          "status",
+          "is_active",
+          "variant",
+          "manifest",
+          "scan_issues",
+          "review_notes",
+          "reviewed_at",
+          "created_at"
+        ],
+        "title": "RenderOut",
         "type": "object"
       },
       "ReviewRequest": {
@@ -4129,6 +4234,160 @@
         ]
       }
     },
+    "/api/v1/designs/renders/{render_id}/activate": {
+      "post": {
+        "operationId": "activate_render_endpoint_api_v1_designs_renders__render_id__activate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "render_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Render Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Activate Render Endpoint",
+        "tags": [
+          "designs"
+        ]
+      }
+    },
+    "/api/v1/designs/renders/{render_id}/pages/{slug}": {
+      "get": {
+        "operationId": "render_page_api_v1_designs_renders__render_id__pages__slug__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "render_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Render Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "enum": [
+                "home",
+                "services",
+                "about",
+                "trust",
+                "inquiry",
+                "contact"
+              ],
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Render Page",
+        "tags": [
+          "designs"
+        ]
+      }
+    },
+    "/api/v1/designs/renders/{render_id}/review": {
+      "post": {
+        "operationId": "review_render_endpoint_api_v1_designs_renders__render_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "render_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Render Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/webforge_api__api__v1__designs__ReviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Render Endpoint",
+        "tags": [
+          "designs"
+        ]
+      }
+    },
     "/api/v1/designs/{design_id}": {
       "get": {
         "operationId": "get_design_api_v1_designs__design_id__get",
@@ -4167,6 +4426,49 @@
           }
         },
         "summary": "Get Design",
+        "tags": [
+          "designs"
+        ]
+      }
+    },
+    "/api/v1/designs/{design_id}/render": {
+      "post": {
+        "operationId": "start_render_api_v1_designs__design_id__render_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "design_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Design Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Render",
         "tags": [
           "designs"
         ]

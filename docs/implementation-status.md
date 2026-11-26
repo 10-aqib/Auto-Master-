@@ -7,13 +7,52 @@
 | 02 | Source adapters | Complete | Disabled (rejected by config) |
 | 03 | Discovery | Complete | Disabled (rejected by config) |
 | 04 | Website audit | Complete | Disabled (rejected by config) |
-| 05 | AI intelligence | **Complete** (mock provider; live Claude calls not run) | Disabled (rejected by config) |
-| 06 | Design generation | Not started | Disabled |
+| 05 | AI intelligence | Complete (mock provider; live Claude calls not run) | Disabled (rejected by config) |
+| 06 | Design generation | **Complete** | Disabled (rejected by config) |
 | 07 | Validation | Not started | Disabled |
 | 08 | Proposals | Not started | Disabled |
 | 09 | Email/compliance | Not started | Sandbox only |
 | 10 | Dashboard/orchestration | Not started | Paused |
 | 11 | Production | Not started | Only approved category |
+
+## Phase 06 — Six-screen concept renderer (2026-11-26)
+
+### Delivered
+- **Deterministic renderer `renderer-1`** (`design/renderer.py`, `design/templates.py`): sandboxed autoescaping
+  Jinja, fixed component vocabulary, CSS from validated palette values and system font stacks, industry variants
+  (warm / clinical / solid / professional), mobile-first layout, semantic headings, skip link, labelled fields,
+  visible focus, 44px targets, reduced motion. Notice "Independent redesign concept — not the official website"
+  on every page (banner and footer). Assumptions are marked "To be confirmed by the business"; contact panel
+  shows verified contact facts only; no testimonial/rating/award/statistic components exist.
+- **Safety scan** before storage: no scripts, event handlers, external or protocol-relative URLs, frames,
+  objects, links, CSS fetches, form actions, named fields or submit buttons; notice required; 200 KB cap.
+- **Inert demo form**: no action/method, unnamed fields, `type="button"`, `form-action 'none'` CSP.
+- **Assets**: one original generated SVG per render, recorded in `assets` (`original-generated`); no downloads.
+- **Versioning**: `design_renders` (migration `0005`) with manifest (keys, SHA-256, sizes), scan results and one
+  active render per project; approve → active; re-activate any approved render (rollback). Pages also recorded in
+  `design_pages`; integrity verified on every read.
+- **Job / API**: `design.render` on queue `design`; `POST /designs/{id}/render`,
+  `GET /designs/renders/{id}/pages/{slug}` (sandbox CSP), `POST /designs/renders/{id}/review|activate`.
+- **UI**: concepts card on the design page with six page tabs, desktop/tablet/mobile widths, sandboxed iframe
+  preview, approve/reject, rollback. Docs: ADR 0007, `.env.example` (`CONCEPT_AUTHOR_*`), API docs.
+
+### Verification evidence (local run, 2026-11-26)
+
+| Check | Result |
+|---|---|
+| API tests (real PostgreSQL + Redis) | PASS — 421 passed (23 new: six pages, determinism, inert form, escaping/injection, 11 scan rules, notice, labels, contrast-safe buttons, variants, store/preview/review/rollback, tamper detection, roles, locked prospects) |
+| Migration 0005 upgrade/downgrade round trip; model/migration drift check | PASS / no differences |
+| Lint / strict types (API 122 files, dashboard) | PASS |
+| Dashboard unit tests / production build | PASS — 47 passed / build OK |
+| Docker stack — 8 services healthy | PASS |
+| Smoke / isolation proof | PASS — 15/15, 8/8 |
+| Browser E2E (render, sandboxed preview, in-frame navigation, demo form cannot submit, no overflow at 390px, CSP header, approve) | PASS — 25/25 |
+| Error log lines | 0 |
+
+### Notes
+- The dashboard frame uses `sandbox allow-same-origin` so in-frame links keep the session cookie; scripts, forms,
+  popups and top navigation stay blocked (ADR 0007 §4).
+- Phase 07 adds automated responsive validation and stored screenshots for every page.
 
 ## Phase 05 — Structured AI design briefs (2026-11-26)
 

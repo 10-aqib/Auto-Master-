@@ -1,12 +1,12 @@
-"""/api/v1 design projects and AI briefs (Phase 05)."""
+"""/api/v1 design projects, AI briefs (Phase 05) and concept renders (Phase 06)."""
 
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
@@ -18,14 +18,22 @@ from webforge_api.api.deps import (
     NowDep,
     OwnerOrAdmin,
     Reviewers,
+    StorageDep,
 )
 from webforge_api.api.v1.discovery import JobOut
-from webforge_api.models import DesignBrief, DesignProject, Prospect, WebsiteAudit
+from webforge_api.models import DesignBrief, DesignProject, DesignRender, Prospect, WebsiteAudit
 from webforge_api.models.enums import ProspectState, RunStatus
 from webforge_api.services.briefs import BRIEF, PROMPT_VERSION, review_brief
 from webforge_api.services.errors import ConflictError, NotFoundError
 from webforge_api.services.jobs import enqueue
 from webforge_api.services.prospect_state import LOCKED
+from webforge_api.services.renders import (
+    RENDER,
+    activate_render,
+    latest_approved_brief,
+    page_html,
+    review_render,
+)
 
 router = APIRouter(tags=["designs"])
 BRIEF_READY_STATES = {
@@ -70,9 +78,28 @@ class BriefOut(BaseModel):
     created_at: datetime
 
 
+class RenderOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    design_project_id: uuid.UUID
+    brief_id: uuid.UUID
+    version: int
+    renderer_version: str
+    status: str
+    is_active: bool
+    variant: str
+    manifest: dict[str, Any]
+    scan_issues: list[dict[str, Any]]
+    review_notes: str | None
+    reviewed_at: datetime | None
+    created_at: datetime
+
+
 class DesignDetail(BaseModel):
     project: DesignProjectOut
     briefs: list[BriefOut]
+    renders: list[RenderOut]
 
 
 class ReviewIn(BaseModel):
@@ -131,9 +158,15 @@ def get_design(design_id: uuid.UUID, _p: AnyStaff, db: DbDep) -> DesignDetail:
         .where(DesignBrief.design_project_id == design_id)
         .order_by(DesignBrief.version.desc())
     )
+    renders = db.scalars(
+        select(DesignRender)
+        .where(DesignRender.design_project_id == design_id)
+        .order_by(DesignRender.version.desc())
+    )
     return DesignDetail(
         project=DesignProjectOut.model_validate(project),
         briefs=[BriefOut.model_validate(b) for b in briefs],
+        renders=[RenderOut.model_validate(r) for r in renders],
     )
 
 
@@ -150,3 +183,71 @@ def review(
     row = review_brief(db, crypto, brief_id=brief_id, approve=body.approve, notes=body.notes,
                        actor_user_id=principal.user.id, now=now, meta=meta)  # fmt: skip
     return BriefOut.model_validate(row)
+
+
+PageSlug = Literal["home", "services", "about", "trust", "inquiry", "contact"]
+# Concept pages are untrusted-looking content: render them sandboxed, script-free and unframeable elsewhere.
+CONCEPT_HEADERS = {
+    "Content-Security-Policy": "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; "
+    "form-action 'none'; base-uri 'none'; frame-ancestors 'self'",
+    "X-Content-Type-Options": "nosniff",
+    "Cache-Control": "private, no-store",
+    "Referrer-Policy": "no-referrer",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "X-Robots-Tag": "noindex, nofollow",
+}
+
+
+@router.post("/designs/{design_id}/render", response_model=JobOut)
+def start_render(
+    design_id: uuid.UUID, principal: OwnerOrAdmin, db: DbDep, now: NowDep, meta: MetaDep
+) -> JobOut:
+    project = db.get(DesignProject, design_id)
+    if project is None:
+        raise NotFoundError("not_found", "Design project not found.")
+    if latest_approved_brief(db, design_id) is None:
+        raise ConflictError("no_approved_brief", "Approve a brief before rendering.")
+    job, _ = enqueue(
+        db, RENDER,
+        idempotency_key=f"render:{design_id}:{now.isoformat()}",
+        payload={"design_project_id": str(design_id), "requested_by": str(principal.user.id)},
+        now=now, entity_type="design_project", entity_id=design_id,
+        correlation_id=meta.request_id, created_by_user_id=principal.user.id,
+    )  # fmt: skip
+    db.commit()
+    return JobOut.model_validate(job)
+
+
+@router.get("/designs/renders/{render_id}/pages/{slug}")
+def render_page(
+    render_id: uuid.UUID, slug: PageSlug, _p: AnyStaff, db: DbDep, storage: StorageDep
+) -> Response:
+    return Response(
+        page_html(db, storage, render_id, slug),
+        media_type="text/html; charset=utf-8",
+        headers=CONCEPT_HEADERS,
+    )
+
+
+@router.post("/designs/renders/{render_id}/review", response_model=RenderOut)
+def review_render_endpoint(
+    render_id: uuid.UUID,
+    body: ReviewIn,
+    principal: Reviewers,
+    db: DbDep,
+    crypto: CryptoDep,
+    now: NowDep,
+    meta: MetaDep,
+) -> RenderOut:
+    row = review_render(db, crypto, render_id=render_id, approve=body.approve, notes=body.notes,
+                        actor_user_id=principal.user.id, now=now, meta=meta)  # fmt: skip
+    return RenderOut.model_validate(row)
+
+
+@router.post("/designs/renders/{render_id}/activate", response_model=RenderOut)
+def activate_render_endpoint(
+    render_id: uuid.UUID, principal: OwnerOrAdmin, db: DbDep, crypto: CryptoDep, meta: MetaDep
+) -> RenderOut:
+    return RenderOut.model_validate(
+        activate_render(db, crypto, render_id=render_id, actor_user_id=principal.user.id, meta=meta)
+    )
