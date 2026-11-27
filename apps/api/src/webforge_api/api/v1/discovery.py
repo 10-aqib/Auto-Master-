@@ -33,6 +33,7 @@ from webforge_api.models import (
     ProspectSource,
     QualificationResult,
     SystemControl,
+    User,
 )
 from webforge_api.models.enums import CampaignStatus, JobStatus, ProspectState, Role
 from webforge_api.services import controls
@@ -529,6 +530,7 @@ class ControlOut(BaseModel):
     reason: str | None
     updated_at: datetime
     updated_by_user_id: uuid.UUID | None
+    updated_by_name: str | None = None
     env_override: bool
 
 
@@ -547,6 +549,11 @@ def _control_out(row: SystemControl, db: DbDep, settings: SettingsDep) -> Contro
         reason=row.reason,
         updated_at=row.updated_at,
         updated_by_user_id=row.updated_by_user_id,
+        updated_by_name=(
+            user.display_name if (user := db.get(User, row.updated_by_user_id)) else None
+        )
+        if row.updated_by_user_id
+        else None,
         env_override=override,
     )
 

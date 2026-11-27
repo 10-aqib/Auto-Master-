@@ -62,7 +62,9 @@ class DesignProjectOut(BaseModel):
     prompt_version: str | None
     model: str | None
     current_version: int
+    renderer_version: str | None
     created_at: datetime
+    business_name: str | None = None
 
 
 class BriefOut(BaseModel):
@@ -166,10 +168,20 @@ def start_brief(
 def list_designs(
     _p: AnyStaff, db: DbDep, prospect_id: uuid.UUID | None = None
 ) -> list[DesignProjectOut]:
-    stmt = select(DesignProject).order_by(DesignProject.created_at.desc()).limit(100)
+    stmt = (
+        select(DesignProject, Prospect.business_name)
+        .join(Prospect, Prospect.id == DesignProject.prospect_id)
+        .order_by(DesignProject.created_at.desc())
+        .limit(100)
+    )
     if prospect_id:
         stmt = stmt.where(DesignProject.prospect_id == prospect_id)
-    return [DesignProjectOut.model_validate(p) for p in db.scalars(stmt)]
+    out = []
+    for project, name in db.execute(stmt).all():
+        item = DesignProjectOut.model_validate(project)
+        item.business_name = name
+        out.append(item)
+    return out
 
 
 @router.get("/designs/{design_id}", response_model=DesignDetail)

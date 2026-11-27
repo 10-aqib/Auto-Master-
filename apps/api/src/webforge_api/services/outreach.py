@@ -26,6 +26,7 @@ from webforge_api.models import (
     OutreachMessage,
     Proposal,
     Prospect,
+    ProspectCampaign,
     Reply,
     WebsiteAudit,
 )
@@ -138,7 +139,9 @@ def create_draft(db: Session, settings: Settings, crypto: Crypto, provider: Emai
                    source_domain=(urlsplit(contact.source_url or "").hostname or domain),
                    preview_expires_on=(now + timedelta(days=settings.preview_retention_days)).strftime("%d %B %Y"),
                    contact_name=contact.contact_name)  # fmt: skip
-    msg = OutreachMessage(prospect_id=prospect.id, email_contact_id=contact.id, proposal_id=proposal.id, provider=provider.name,
+    campaign_id = db.scalar(select(ProspectCampaign.campaign_id).where(ProspectCampaign.prospect_id == prospect.id)
+                            .order_by(ProspectCampaign.added_at.desc()).limit(1))  # fmt: skip
+    msg = OutreachMessage(prospect_id=prospect.id, email_contact_id=contact.id, proposal_id=proposal.id, provider=provider.name, campaign_id=campaign_id,
                           message_category="commercial_initial", subject_version=TEMPLATE_VERSION, body_version=TEMPLATE_VERSION,
                           subject=draft.subject, body_encrypted=crypto.encrypt_str(draft.text, context=BODY_CONTEXT),
                           status=MessageStatus.DRAFT, idempotency_key=f"outreach:{uuid.uuid4()}", recipient_hash=contact.email_hash)  # fmt: skip

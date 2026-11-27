@@ -11,9 +11,33 @@
 | 06 | Design generation | Complete | Disabled (rejected by config) |
 | 07 | Validation | Complete | Disabled (rejected by config) |
 | 08 | Proposals | Complete (no email) | Disabled (rejected by config) |
-| 09 | Email/compliance | **Complete (mock provider only)** | Live sending rejected by config; no approved provider |
-| 10 | Dashboard/orchestration | Not started | Paused |
+| 09 | Email/compliance | Complete (mock provider only) | Live sending rejected by config; no approved provider |
+| 10 | Dashboard/orchestration | **Complete** | Live sending rejected by config; email pause seeded ON |
 | 11 | Production | Not started | Only approved category |
+
+## Phase 10 — Owner dashboard and orchestration (2026-11-27)
+
+### Delivered
+- **Overview**: cumulative pipeline funnel, holds/exits, outcomes (sent, delivered, bounced, complaints, replied,
+  opted out, interested, clients), hold reasons, per-campaign and per-country views (country filter), monthly
+  spend, budget warnings (80%) and stops (100% / limit 0), review-queue counts, live API health.
+- **Review queues** page (seven queues, oldest first, linked to the item).
+- **Operations** page: worker heartbeats, queue depth/age, dead letters, failures and provider errors (24 h),
+  quotas, pause switches, backup status.
+- **Pause banner** on every page (state + last actor + time); scoped pause labels in Settings.
+- **Index pages**: Designs (with business names), Outreach (status filters); nav reorganised.
+- Drafts carry the prospect's campaign so campaign pauses hold sends. Skip link; Card overflow fix.
+- Docs: ADR 0011, API docs.
+
+### Verification evidence (local run, 2026-11-27)
+
+| Check | Result |
+|---|---|
+| API tests (real PostgreSQL + Redis) | PASS — 490 passed (6 new: cumulative funnel + filters, budget warning/stop, review queues, operations RBAC/queues/dead letters/backups, worker heartbeat TTL against real Redis, campaign link) |
+| Lint / strict types / dashboard tests and build | PASS — 51 dashboard tests |
+| Docker stack 9 services / smoke / isolation | PASS — 19/19, 8/8 |
+| Browser E2E (full fixture pipeline through proposal, compliance HOLD→eligible, mock send, overview/banner/queues/operations/index pages, skip link, no overflow at 390 px on ten pages) | PASS — 30/30 |
+| Error log lines | 0 |
 
 ## Phase 09 — Email compliance engine, mock provider, replies (2026-11-27)
 

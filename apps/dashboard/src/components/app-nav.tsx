@@ -6,11 +6,15 @@ import { usePathname } from "next/navigation";
 import { ROLE_LABEL, type Role } from "@/lib/auth-shared";
 
 const LINKS: { href: string; label: string; roles?: Role[] }[] = [
-  { href: "/", label: "Status" },
+  { href: "/", label: "Overview" },
+  { href: "/review", label: "Review" },
   { href: "/campaigns", label: "Campaigns" },
   { href: "/prospects", label: "Prospects" },
+  { href: "/designs", label: "Designs" },
+  { href: "/outreach", label: "Outreach" },
   { href: "/replies", label: "Replies" },
   { href: "/compliance", label: "Compliance" },
+  { href: "/operations", label: "Operations", roles: ["OWNER", "ADMIN"] },
   { href: "/jobs", label: "Jobs", roles: ["OWNER", "ADMIN"] },
   { href: "/sources", label: "Sources", roles: ["OWNER", "ADMIN"] },
   { href: "/users", label: "Users", roles: ["OWNER", "ADMIN"] },

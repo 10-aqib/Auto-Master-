@@ -7,6 +7,8 @@ and stops gracefully on SIGTERM after the current job.
 from __future__ import annotations
 
 import argparse
+import contextlib
+import os
 import signal
 import socket
 import time
@@ -32,6 +34,7 @@ from webforge_api.services.audits import BrowserClient
 from webforge_api.services.email.provider import EmailProvider, build_provider
 from webforge_api.services.job_handlers import HANDLERS, JobContext, JobDeferred
 from webforge_api.services.jobs import JobError
+from webforge_api.services.overview import record_heartbeat
 from webforge_api.services.places import PlacesService
 from webforge_api.sources.places import ConnectorFactory
 from webforge_api.sources.registry import SourceRegistry
@@ -204,9 +207,20 @@ def main(argv: list[str] | None = None) -> int:
     signal.signal(signal.SIGINT, stop)
     log.info("worker_started", queues=queues, host=socket.gethostname())
     heartbeat = Path(args.heartbeat_file)
+    worker_id = f"{socket.gethostname()}:{os.getpid()}"
+    beat_client = redis.Redis.from_url(
+        settings.redis_url.get_secret_value(), socket_timeout=2, socket_connect_timeout=2
+    )
+    last_beat = 0.0
     try:
         while not stopping:
             heartbeat.touch()  # container healthcheck reads this file's age
+            if time.monotonic() - last_beat >= 10:
+                with contextlib.suppress(
+                    redis.RedisError
+                ):  # the dashboard's health view reads these
+                    record_heartbeat(beat_client, worker_id, queues, utcnow())
+                last_beat = time.monotonic()
             if run_once(runtime, queues) is None:
                 time.sleep(args.idle_sleep)
     finally:

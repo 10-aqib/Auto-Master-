@@ -77,6 +77,9 @@ in non-production environments only.
 | GET/POST | `/replies`, `/replies/{id}/handled` | read: all; handle: OWNER, ADMIN | Classified reply inbox |
 | POST | `/webhooks/email/{provider}/events`, `/inbound` | public, HMAC-signed | Provider events and replies (dedupe, 5-minute window) |
 | GET/POST | `/u/{token}` | public | Unsubscribe page / one-click (RFC 8058) |
+| GET | `/overview?country=&campaign_id=` | all roles | Funnel, outcomes, hold reasons, budgets, spend (no open/click tracking) |
+| GET | `/review-queues` | all roles | Items waiting for a human decision |
+| GET | `/operations` | OWNER, ADMIN | Workers, queues, failures, provider errors, quotas, pauses, backups |
 | GET | `/industries` | all roles | Industry vocabulary |
 | GET | `/health/live`, `/health/ready` | anyone | Liveness / dependency readiness |
 

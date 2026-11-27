@@ -13,6 +13,8 @@ export interface DesignProject {
   model: string | null;
   current_version: number;
   created_at: string;
+  renderer_version?: string | null;
+  business_name?: string | null;
 }
 
 export interface BriefSection {

@@ -1005,6 +1005,17 @@
             "title": "Updated At",
             "type": "string"
           },
+          "updated_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By Name"
+          },
           "updated_by_user_id": {
             "anyOf": [
               {
@@ -1167,6 +1178,17 @@
             ],
             "title": "Brief Schema Version"
           },
+          "business_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Name"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -1208,6 +1230,17 @@
             "title": "Prospect Id",
             "type": "string"
           },
+          "renderer_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Renderer Version"
+          },
           "status": {
             "title": "Status",
             "type": "string"
@@ -1222,6 +1255,7 @@
           "prompt_version",
           "model",
           "current_version",
+          "renderer_version",
           "created_at"
         ],
         "title": "DesignProjectOut",
@@ -6332,6 +6366,29 @@
         ]
       }
     },
+    "/api/v1/operations": {
+      "get": {
+        "operationId": "get_operations_api_v1_operations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Operations Api V1 Operations Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Operations",
+        "tags": [
+          "overview"
+        ]
+      }
+    },
     "/api/v1/outreach": {
       "get": {
         "operationId": "list_messages_api_v1_outreach_get",
@@ -6602,6 +6659,75 @@
         "summary": "Simulate",
         "tags": [
           "outreach"
+        ]
+      }
+    },
+    "/api/v1/overview": {
+      "get": {
+        "operationId": "get_overview_api_v1_overview_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "campaign_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f-]{36}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Campaign Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "country",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Z]{2}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Country"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Overview Api V1 Overview Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Overview",
+        "tags": [
+          "overview"
         ]
       }
     },
@@ -7627,6 +7753,29 @@
         "summary": "Reply Handled",
         "tags": [
           "outreach"
+        ]
+      }
+    },
+    "/api/v1/review-queues": {
+      "get": {
+        "operationId": "get_review_queues_api_v1_review_queues_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Review Queues Api V1 Review Queues Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Review Queues",
+        "tags": [
+          "overview"
         ]
       }
     },

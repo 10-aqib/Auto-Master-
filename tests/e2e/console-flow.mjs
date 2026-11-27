@@ -534,6 +534,48 @@ try {
     await shot(page, "23-unsubscribed");
   });
 
+  await check("overview, pause banner, review queues, operations and index pages reflect real data", async () => {
+    await page.getByRole("link", { name: "Overview" }).click();
+    await expectUrl(page, "/");
+    await page.getByRole("heading", { name: "Overview" }).waitFor();
+    const banner = await page.getByTestId("pause-email").innerText();
+    if (!/Email: RUNNING/.test(banner) || !/E2E Owner/.test(banner)) throw new Error(`banner: ${banner}`);
+    const sent = await page.locator("section[aria-label='Outcomes'] div", { hasText: "Sent" }).first().innerText();
+    if (!/Sent\s+1/.test(sent)) throw new Error(`sent tile: ${sent}`);
+    await page.getByText("Pipeline (prospects that reached each stage)").waitFor();
+    await shot(page, "24-overview");
+    await page.getByRole("link", { name: "Open review queues" }).click();
+    await expectUrl(page, "/review");
+    await page.getByRole("heading", { name: /Replies needing a decision/ }).waitFor();
+    await page.getByRole("link", { name: "Operations" }).click();
+    await expectUrl(page, "/operations");
+    await page.locator("li", { hasText: /outreach/ }).first().waitFor(); // a worker reporting the outreach queue
+    await page.getByText("Backups:").waitFor();
+    await shot(page, "25-operations");
+    await page.getByRole("link", { name: "Designs" }).click();
+    await page.getByRole("link", { name: "E2E Fixture Bakery" }).waitFor();
+    await page.getByRole("link", { name: "Outreach", exact: true }).click();
+    await page.getByRole("link", { name: "accepted" }).click();
+    await page.getByRole("link", { name: /Website redesign concept for E2E Fixture Bakery/ }).waitFor();
+  });
+
+  await check("keyboard skip link and phone-width layout", async () => {
+    const phone = await ctx.newPage();
+    await phone.setViewportSize({ width: 390, height: 844 });
+    await phone.goto(`${BASE}/`);
+    await phone.keyboard.press("Tab");
+    const focused = await phone.evaluate(() => document.activeElement?.textContent?.trim());
+    if (focused !== "Skip to content") throw new Error(`first tab stop: ${focused}`);
+    const prospectPath = await page.evaluate(() => location.pathname);
+    for (const path of ["/", "/review", "/prospects", "/compliance", "/outreach", "/replies", "/designs", "/operations", "/settings", prospectPath]) {
+      await phone.goto(`${BASE}${path}`);
+      const width = await phone.evaluate(() => document.documentElement.scrollWidth);
+      if (width > 390) throw new Error(`horizontal overflow on ${path}: ${width}px`);
+    }
+    await shot(phone, "26-overview-mobile");
+    await phone.close();
+  });
+
   await check("no browser console errors", async () => {
     const real = errors.filter((e) => !/401|403|409|Failed to load resource/.test(e));
     if (real.length) throw new Error(real.join(" | "));
