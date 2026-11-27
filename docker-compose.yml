@@ -172,7 +172,7 @@ services:
       context: apps/api
       dockerfile: ../../infrastructure/docker/api.Dockerfile
     image: webforge/api:dev
-    command: ["python", "-m", "webforge_api.worker", "--queues", "discovery,verification,qualification,design"]
+    command: ["python", "-m", "webforge_api.worker", "--queues", "discovery,verification,qualification,design,outreach"]
     env_file: [.env]
     read_only: true
     tmpfs: [/tmp]

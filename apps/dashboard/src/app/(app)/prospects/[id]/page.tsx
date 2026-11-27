@@ -6,7 +6,9 @@ import { ProspectReview } from "@/components/prospect-review";
 import { Alert, Card, formatDate } from "@/components/ui";
 import { apiServer, requireActiveSession } from "@/lib/api-server";
 import { COMPONENT_LABEL, type Audit, type ProspectDetail } from "@/lib/discovery";
-import { type DesignProject } from "@/lib/designs";
+import { OutreachCard } from "@/components/outreach-card";
+import { type DesignProject, type Proposal } from "@/lib/designs";
+import type { Contact, OutreachMessage } from "@/lib/outreach";
 import { reasonText } from "@/lib/sources";
 
 export const metadata = { title: "Prospect · WEBFORGE AI" };
@@ -14,10 +16,14 @@ export const metadata = { title: "Prospect · WEBFORGE AI" };
 export default async function ProspectPage({ params }: PageProps<"/prospects/[id]">) {
   const { id } = await params;
   const { user } = await requireActiveSession();
-  const [detail, audits, designs] = await Promise.all([
+  const [detail, audits, designs, contacts, messages, proposals, emailConfig] = await Promise.all([
     apiServer<ProspectDetail>(`/prospects/${id}`),
     apiServer<Audit[]>(`/audits?prospect_id=${id}`),
     apiServer<DesignProject[]>(`/designs?prospect_id=${id}`),
+    apiServer<Contact[]>(`/prospects/${id}/contacts`),
+    apiServer<OutreachMessage[]>(`/outreach?prospect_id=${id}`),
+    apiServer<Proposal[]>(`/proposals?prospect_id=${id}`),
+    apiServer<{ simulate_available: boolean }>(`/outreach/config`),
   ]);
   if (!detail.ok) return <Alert>{detail.error.message}</Alert>;
   const { prospect: p, facts, verifications, place_ids, campaigns, qualifications, merges } = detail.data;
@@ -158,6 +164,15 @@ export default async function ProspectPage({ params }: PageProps<"/prospects/[id
           </p>
         )}
       </Card>
+
+      <OutreachCard
+        prospectId={p.id}
+        contacts={contacts.ok ? contacts.data : []}
+        messages={messages.ok ? messages.data : []}
+        proposals={proposals.ok ? proposals.data : []}
+        role={user.role}
+        devSimulate={emailConfig.ok && emailConfig.data.simulate_available}
+      />
 
       <Card title="Source evidence (field-level provenance)">
         {facts.length ? (

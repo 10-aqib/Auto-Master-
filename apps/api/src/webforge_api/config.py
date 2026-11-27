@@ -198,6 +198,15 @@ class Settings(BaseSettings):
     email_webhook_secret: SecretStr = SecretStr("")
     email_inbound_signing_secret: SecretStr = SecretStr("")
     email_provider_policy_approved: bool = False
+    # Phase 09: disclosures and owner confirmations checked before every send (all fail closed).
+    # Postal address required by some jurisdictions' policies (e.g. CAN-SPAM). Never invented.
+    email_physical_address: Annotated[str, Field(max_length=300)] = ""
+    # Where the owner recorded the provider's written approval for this exact traffic.
+    email_provider_approval_ref: Annotated[str, Field(max_length=300)] = ""
+    # Owner confirms SPF/DKIM/DMARC for EMAIL_FROM_ADDRESS's domain are published and aligned.
+    email_domain_authenticated: bool = False
+    # Accepted age of webhook signatures (replay protection).
+    email_webhook_tolerance_seconds: Annotated[int, Field(ge=30, le=900)] = 300
 
     # Storage
     storage_backend: Literal["local", "s3"] = "local"
@@ -284,8 +293,9 @@ class Settings(BaseSettings):
         # Fail closed: these switches stay off until their phase implements the safeguards.
         if self.email_sending_enabled:
             raise ValueError(
-                "EMAIL_SENDING_ENABLED=true is rejected: compliant sending is not implemented "
-                "(Phase 09) and requires owner approval."
+                "EMAIL_SENDING_ENABLED=true is rejected: no live provider adapter is enabled "
+                "(the candidate providers' policies prohibit unsolicited outreach; see "
+                "docs/compliance/email-providers.md). Only the mock provider can send."
             )
         return self
 

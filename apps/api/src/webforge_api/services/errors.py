@@ -44,3 +44,7 @@ class RateLimitedError(ServiceError):
 
 class UnavailableError(ServiceError):
     status_code = 503
+
+
+class ValidationFailedError(ServiceError):
+    status_code = 422

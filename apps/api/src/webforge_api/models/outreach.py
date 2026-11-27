@@ -61,6 +61,18 @@ class OutreachMessage(UUIDPrimaryKey, Timestamps, Base):
     )
     idempotency_key: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     error_code: Mapped[str | None] = mapped_column(String(64))
+    # Phase 09
+    subject: Mapped[str | None] = mapped_column(Text)
+    recipient_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    unsubscribe_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    preview_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("preview_deployments.id", ondelete="SET NULL")
+    )
+    approved_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    approved_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    cancelled_reason: Mapped[str | None] = mapped_column(String(64))
 
     __table_args__ = (
         UniqueConstraint("provider", "provider_message_id"),
@@ -111,3 +123,14 @@ class Reply(UUIDPrimaryKey, Base):
         Boolean, default=True, server_default=text("true"), nullable=False
     )
     handled_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    # Phase 09
+    provider: Mapped[str | None] = mapped_column(String(32))
+    provider_event_id: Mapped[str | None] = mapped_column(String(255))
+    from_hash: Mapped[str | None] = mapped_column(String(64))
+    body_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary)
+    subject: Mapped[str | None] = mapped_column(Text)
+    handled_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+
+    __table_args__ = (UniqueConstraint("provider", "provider_event_id"),)

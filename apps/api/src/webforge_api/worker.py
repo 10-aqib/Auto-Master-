@@ -29,6 +29,7 @@ from webforge_api.security.rate_limit import RateLimiter, RedisRateLimiter
 from webforge_api.services import jobs as jobqueue
 from webforge_api.services.ai import AIError, BriefModel, build_model
 from webforge_api.services.audits import BrowserClient
+from webforge_api.services.email.provider import EmailProvider, build_provider
 from webforge_api.services.job_handlers import HANDLERS, JobContext, JobDeferred
 from webforge_api.services.jobs import JobError
 from webforge_api.services.places import PlacesService
@@ -39,7 +40,7 @@ from webforge_api.sources.website import WebsiteVerifier
 from webforge_api.storage import Storage, build_storage
 
 log = get_logger("webforge_api.worker")
-ALL_QUEUES = ["discovery", "verification", "qualification", "audit", "design"]
+ALL_QUEUES = ["discovery", "verification", "qualification", "audit", "design", "outreach"]
 
 
 class Runtime:
@@ -57,6 +58,7 @@ class Runtime:
         storage: Storage | None = None,
         browser: BrowserClient | None = None,
         ai: BriefModel | None = None,
+        email: EmailProvider | None = None,
     ) -> None:
         self.settings = settings
         self.engine = build_engine(settings)
@@ -78,6 +80,9 @@ class Runtime:
         self.handlers = handlers or dict(HANDLERS)
         self.storage = storage or build_storage(settings)
         self.browser = browser or BrowserClient(settings.browser_service_url)
+        self.email = email or build_provider(
+            settings.email_provider.value, settings.email_webhook_tolerance_seconds
+        )
         self.ai = ai
         if self.ai is None:
             try:
@@ -106,6 +111,7 @@ class Runtime:
             storage=self.storage,
             browser=self.browser,
             ai=self.ai,
+            email=self.email,
         )
 
     def close(self) -> None:

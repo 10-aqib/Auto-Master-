@@ -13,7 +13,8 @@ const FORWARD_REQUEST_HEADERS = [
 ];
 const FORWARD_RESPONSE_HEADERS = ["content-type", "retry-after", "x-request-id", "cache-control"];
 export const MAX_BODY_BYTES = 1_000_000;
-const SAFE_SEGMENT = /^[A-Za-z0-9._~-]+$/;
+// ":" is allowed for scoped control keys such as country_pause:PK (still a single path segment).
+const SAFE_SEGMENT = /^[A-Za-z0-9._~:-]+$/;
 
 export function isSafePath(segments: string[]): boolean {
   return (

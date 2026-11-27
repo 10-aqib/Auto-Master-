@@ -197,8 +197,8 @@ def token_hash(crypto: Crypto, token: str) -> str:
     return crypto.lookup_hash(token, purpose="preview-token")
 
 
-def create_preview(db: Session, crypto: Crypto, settings: Settings, *, proposal_id: uuid.UUID, actor_user_id: uuid.UUID,
-                   now: datetime, meta: RequestMeta) -> tuple[PreviewDeployment, str]:  # fmt: skip
+def create_preview(db: Session, crypto: Crypto, settings: Settings, *, proposal_id: uuid.UUID, actor_user_id: uuid.UUID | None,
+                   now: datetime, meta: RequestMeta | None, commit: bool = True) -> tuple[PreviewDeployment, str]:  # fmt: skip
     """Returns (row, url). The URL contains the raw token and is shown once; only its hash is stored."""
     proposal = db.get(Proposal, proposal_id)
     if proposal is None or proposal.deleted_at is not None:
@@ -215,8 +215,9 @@ def create_preview(db: Session, crypto: Crypto, settings: Settings, *, proposal_
     db.add(row)
     db.flush()
     activity.record(db, crypto, action="preview.created", actor_user_id=actor_user_id, meta=meta, entity_type="preview",
-                    entity_id=row.id, metadata={"expires_at": expires.isoformat()})  # fmt: skip
-    db.commit()
+                    entity_id=row.id, metadata={"expires_at": expires.isoformat()}, system=actor_user_id is None)  # fmt: skip
+    if commit:
+        db.commit()
     return row, f"{settings.preview_base_url}/p/{token}/"
 
 

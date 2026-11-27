@@ -6,6 +6,7 @@ from webforge_api.api.v1 import (
     auth,
     designs,
     discovery,
+    outreach,
     proposals,
     sources,
     users,
@@ -20,3 +21,4 @@ router.include_router(discovery.router)
 router.include_router(audits.router)
 router.include_router(designs.router)
 router.include_router(proposals.router)
+router.include_router(outreach.router)

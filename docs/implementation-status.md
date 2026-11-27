@@ -10,10 +10,44 @@
 | 05 | AI intelligence | Complete (mock provider; live Claude calls not run) | Disabled (rejected by config) |
 | 06 | Design generation | Complete | Disabled (rejected by config) |
 | 07 | Validation | Complete | Disabled (rejected by config) |
-| 08 | Proposals | **Complete** (no email) | Disabled (rejected by config) |
-| 09 | Email/compliance | Not started | Sandbox only |
+| 08 | Proposals | Complete (no email) | Disabled (rejected by config) |
+| 09 | Email/compliance | **Complete (mock provider only)** | Live sending rejected by config; no approved provider |
 | 10 | Dashboard/orchestration | Not started | Paused |
 | 11 | Production | Not started | Only approved category |
+
+## Phase 09 — Email compliance engine, mock provider, replies (2026-11-27)
+
+### Delivered
+- **Provider review**: Resend and Postmark prohibit unsolicited/cold email → no live adapter; mock only
+  (`docs/compliance/email-providers.md`).
+- **Policy registry** (country × recipient type × category, versioned, reviewed-only activation, owner-only),
+  inactive research drafts via `cli seed-policy-drafts`.
+- **Contacts** only from the verified official domain or provided by the business (no guessed addresses);
+  encrypted + keyed hash; consent records.
+- **17-check eligibility engine** run at draft, approval and immediately before sending; HOLD/INELIGIBLE with
+  reason codes; full checklist stored on each assessment (migration `0008`).
+- **One owner-approved initial message** (`outreach-1` template, truthful-content checks), send job with recipient
+  lock, durable send intent, stable idempotency key, ambiguous-send reconciliation, all pause switches (global,
+  email, campaign, country, provider) holding queued mail.
+- **Unsubscribe** (token hash, RFC 8058 one-click, GET-safe page, GLOBAL suppression + cancel in one transaction),
+  **signed webhooks** (freshness window, dedupe), hard bounce/complaint suppression, **inbound replies** stored
+  encrypted and classified by fixed rules with opt-out priority.
+- **UI**: Compliance page (sending status, policy registry, review/activation, suppression, country pause),
+  Outreach card on prospects (contacts, draft, 17-check list, approve/cancel, dev simulator), Replies inbox.
+- Docs: ADR 0010, provider review, `.env.example`, API docs.
+
+### Verification evidence (local run, 2026-11-27)
+
+| Check | Result |
+|---|---|
+| API tests (real PostgreSQL + Redis) | PASS — 484 passed (33 new: no-policy HOLD, public-address-is-not-consent, eligible draft + approval, official-source contacts, zero budget and production-mock fail closed, idempotent send with preview/unsubscribe, transient retry + ambiguous reconcile without duplicates, every pause switch, suppression cancelling queued mail, one-click unsubscribe, webhook signature/replay/dedupe, bounce/complaint/soft bounce, reply classification and opt-out priority, classifier and content-check cases, policy registry rules and owner-only activation, seeded drafts inactive, provider/live-sending rejection) |
+| Lint / strict types (API 142 files, dashboard) / dashboard tests and build | PASS — 49 tests |
+| Docker stack 9 services / smoke / isolation | PASS — 19/19, 8/8 |
+| Browser E2E (policy review + activation, email resume, contact, 17/17 checks, owner approval, worker mock send, preview + unsubscribe links in body, simulated reply classified, recipient one-click unsubscribe → suppressed) | PASS — 28/28 |
+| Error log lines | 0 |
+
+Not done (owner decisions): any live provider, legal review of real country policies, sender domain, postal
+address and mailbox. Live sending remains impossible by configuration.
 
 ## Phase 08 — Proposal PDF and secure preview (2026-11-26)
 

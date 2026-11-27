@@ -34,6 +34,8 @@ def main() -> int:
         "LOOKUP_HASH_KEY": secrets.token_urlsafe(48),
         "POSTGRES_PASSWORD": db_pw,
         "REDIS_PASSWORD": redis_pw,
+        "EMAIL_WEBHOOK_SECRET": secrets.token_urlsafe(32),
+        "EMAIL_INBOUND_SIGNING_SECRET": secrets.token_urlsafe(32),
     }
     lines = []
     for line in (ROOT / ".env.example").read_text().splitlines():

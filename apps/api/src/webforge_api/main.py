@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from webforge_api import __version__
-from webforge_api.api import health
+from webforge_api.api import health, public
 from webforge_api.api import v1 as api_v1
 from webforge_api.api.errors import install_error_handlers
 from webforge_api.config import AppEnv, Settings, get_settings
@@ -23,6 +23,7 @@ from webforge_api.middleware import RequestContextMiddleware
 from webforge_api.net.safe_fetch import FetchPolicy
 from webforge_api.security.crypto import Crypto
 from webforge_api.security.rate_limit import RateLimiter, RedisRateLimiter
+from webforge_api.services.email.provider import EmailProvider, build_provider
 from webforge_api.sources.places import ConnectorFactory
 from webforge_api.storage import Storage, build_storage
 
@@ -37,6 +38,7 @@ def create_app(
     places_transport: httpx.BaseTransport | None = None,
     fetch_policy: FetchPolicy | None = None,
     storage: Storage | None = None,
+    email_provider: EmailProvider | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level.value, json_output=settings.app_env is not AppEnv.TEST)
@@ -74,6 +76,9 @@ def create_app(
     app.state.clock = clock
     # Test hooks: an httpx transport for the Places API and a fetch policy for website checks.
     app.state.storage = storage or build_storage(settings)
+    app.state.email_provider = email_provider or build_provider(
+        settings.email_provider.value, settings.email_webhook_tolerance_seconds
+    )
     app.state.connectors = ConnectorFactory(
         settings.google_maps_api_key.get_secret_value(), transport=places_transport
     )
@@ -102,4 +107,5 @@ def create_app(
     install_error_handlers(app)
     app.include_router(health.router)
     app.include_router(api_v1.router)
+    app.include_router(public.router)
     return app

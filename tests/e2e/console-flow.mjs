@@ -306,10 +306,16 @@ try {
         INSERT INTO prospect_sources (id, prospect_id, source_type, source_name, source_url, fact_field, safe_value,
                                       retrieved_at, confidence, verification_method, is_independent)
         SELECT gen_random_uuid(), id, 'OFFICIAL_WEBSITE', 'Official website', 'https://bakery.example.test/',
-               'business_name', 'E2E Fixture Bakery', now(), 0.9, 'e2e_fixture', true FROM p)
-      INSERT INTO website_audits (id, prospect_id, url, status, audit_version, started_at, finished_at, scores)
-      SELECT gen_random_uuid(), id, 'https://bakery.example.test/', 'SUCCEEDED', 'audit-1', now(), now(),
-             '{"overall": 61}'::jsonb FROM p RETURNING prospect_id;`;
+               'business_name', 'E2E Fixture Bakery', now(), 0.9, 'e2e_fixture', true FROM p),
+      a AS (
+        INSERT INTO website_audits (id, prospect_id, url, status, audit_version, started_at, finished_at, scores)
+        SELECT gen_random_uuid(), id, 'https://bakery.example.test/', 'SUCCEEDED', 'audit-1', now(), now(),
+               '{"overall": 61}'::jsonb FROM p RETURNING id, prospect_id),
+      f AS (
+        INSERT INTO audit_findings (id, audit_id, category, severity, code, description, viewport, observed_at)
+        SELECT gen_random_uuid(), id, 'mobile_usability', 'HIGH', 'MOBILE_HORIZONTAL_OVERFLOW',
+               'The home page scrolls sideways on a 390px phone screen. Content is cut off.', 'mobile', now() FROM a)
+      SELECT prospect_id FROM a;`;
     const out = execFileSync(
       "docker",
       ["compose", "exec", "-T", "postgres", "psql", "-U", "webforge", "-d", "webforge", "-tA", "-v", "ON_ERROR_STOP=1"],
@@ -447,6 +453,85 @@ try {
     await page.getByText("preview revoked").waitFor();
     if ((await v.request.get(`${url}home`)).status() !== 404) throw new Error("revoked preview still served");
     await visitor.close();
+  });
+
+  await check("compliance gate: reviewed policy, contact, 17 checks, owner approval, mock send, reply and unsubscribe", async () => {
+    page.on("dialog", (d) => d.accept());
+    const prospectUrl = `${BASE}${await page.getByRole("link", { name: "← Prospect" }).getAttribute("href")}`;
+    // 1. A policy recorded as reviewed (test fixture values only).
+    await page.getByRole("link", { name: "Compliance", exact: true }).click();
+    await page.getByText("Add a policy draft").click();
+    await page.getByLabel("Country (ISO code)").first().fill("US");
+    await page.getByLabel("Version").fill("e2e-1");
+    await page.getByLabel("Official source URLs (one per line)").fill("https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business");
+    await page.getByLabel("Rules (JSON, as advised by counsel)").fill(JSON.stringify({
+      permitted: true, legal_bases: ["legitimate_interest"], consent_required: false,
+      disclosures: ["sender_identity", "physical_address", "unsubscribe", "concept_notice"], unsubscribe: "link + one-click",
+      retention_days: 365, next_review: "2099-01-01", personal_data_reviewed: true,
+    }));
+    await page.getByRole("button", { name: "Save draft" }).click();
+    await page.getByText("Record legal review and activate").click();
+    await page.getByLabel("Reviewer name").fill("E2E Fixture Reviewer");
+    await page.getByLabel("Reviewer qualification").fill("Test fixture only");
+    await page.getByLabel("Reviewed on").fill("2026-11-01");
+    await page.getByLabel("Effective from").fill("2026-11-01");
+    await page.getByRole("button", { name: "Activate policy" }).click();
+    await page.getByText("E2E Fixture Reviewer (Test fixture only)").waitFor();
+    await shot(page, "20-compliance");
+    // 2. Resume the email pause (seeded paused).
+    await page.getByRole("link", { name: "Settings" }).click();
+    const e = page.locator("section").filter({ has: page.getByRole("heading", { name: "Email pause", exact: true }) }).last();
+    await e.getByLabel("Reason").fill("E2E mock send");
+    await e.getByRole("button", { name: "Resume" }).click();
+    await e.getByText("RUNNING", { exact: true }).waitFor();
+    // 3. Contact from the official site, draft, checks.
+    await page.goto(prospectUrl);
+    await page.getByText("Add a contact").click();
+    await page.getByLabel("Email address").fill("hello@bakery.example.test");
+    await page.getByLabel("Country (ISO code)").fill("US");
+    await page.getByLabel("Page where it is published (https)").fill("https://bakery.example.test/contact");
+    await page.getByRole("button", { name: "Save contact" }).click();
+    await page.getByText("h•••@bakery.example.test", { exact: true }).waitFor();
+    await page.getByText("Draft the initial message").click();
+    await page.getByLabel("Legal basis (as reviewed by counsel)").selectOption("legitimate_interest");
+    await page.getByLabel("Evidence for that basis").fill("E2E fixture: counsel memo reference for corporate role address.");
+    await page.getByRole("button", { name: "Draft and check" }).click();
+    await page.getByText("compliance eligible").waitFor();
+    await page.getByText("Pre-send checks (17/17 pass)").waitFor();
+    await shot(page, "21-outreach-eligible");
+    // 4. Owner approval -> worker sends through the mock provider.
+    await page.getByRole("button", { name: "Approve and send" }).click();
+    const deadline = Date.now() + 90_000;
+    for (;;) {
+      await page.reload();
+      if (await page.getByText("accepted", { exact: true }).count()) break;
+      if (Date.now() > deadline) throw new Error("mock send did not complete");
+      await page.waitForTimeout(2000);
+    }
+    await page.getByText(/^Message: /).click();
+    const body = await page.locator("pre").first().innerText();
+    if (!body.includes("independent redesign concept") || !/\/p\/[A-Za-z0-9_-]{43}\//.test(body)) throw new Error("sent body missing preview");
+    const unsub = body.match(/https?:\/\/[^\s]+\/u\/[A-Za-z0-9_-]+/)?.[0];
+    if (!unsub) throw new Error("no unsubscribe link");
+    // 5. Simulated reply lands in Replies, classified.
+    const [simulated] = await Promise.all([
+      page.waitForResponse((res) => res.url().includes("/simulate")),
+      page.getByRole("button", { name: "Simulate reply" }).click(),
+    ]);
+    if (simulated.status() !== 200) throw new Error(`simulate reply: ${simulated.status()}`);
+    await page.getByRole("link", { name: "Replies" }).click();
+    await page.getByText("interested", { exact: true }).first().waitFor();
+    await shot(page, "22-replies");
+    // 6. Recipient unsubscribes (no login, separate context): GET shows a button, POST suppresses.
+    const recipient = await browser.newContext();
+    const r = await recipient.newPage();
+    await r.goto(unsub.replace("localhost", "127.0.0.1"));
+    await r.getByRole("button", { name: "Unsubscribe" }).click();
+    await r.getByRole("heading", { name: "You are unsubscribed" }).waitFor();
+    await recipient.close();
+    await page.goto(prospectUrl);
+    await page.getByText("suppressed", { exact: true }).first().waitFor();
+    await shot(page, "23-unsubscribed");
   });
 
   await check("no browser console errors", async () => {

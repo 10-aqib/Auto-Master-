@@ -20,4 +20,6 @@ def test_openapi_contract_is_up_to_date() -> None:
 def test_only_versioned_and_health_routes_exposed() -> None:
     paths = openapi_contract()["paths"]
     assert isinstance(paths, dict)
-    assert all(p.startswith(("/api/v1/", "/health/")) for p in paths)
+    # Provider webhooks (Phase 09) are the only public, unversioned API routes; they require a valid
+    # HMAC signature. The unsubscribe page (/u/...) is excluded from the schema.
+    assert all(p.startswith(("/api/v1/", "/health/", "/webhooks/email/")) for p in paths)

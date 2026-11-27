@@ -19,12 +19,13 @@ from webforge_api.config import Settings
 from webforge_api.models import Campaign, ExternalPlaceIdentifier, Job, Prospect, ProspectCampaign
 from webforge_api.models.enums import CampaignStatus, ProspectState
 from webforge_api.security.crypto import Crypto
-from webforge_api.services import controls
+from webforge_api.services import controls, outreach
 from webforge_api.services.ai import AIError, BriefModel
 from webforge_api.services.audits import AUDIT, AuditDeps, BrowserClient, run_audit
 from webforge_api.services.briefs import BriefDeps, generate_brief
 from webforge_api.services.campaigns import DISCOVERY_VERIFY, QUALIFY
 from webforge_api.services.context import RequestMeta
+from webforge_api.services.email.provider import EmailProvider
 from webforge_api.services.errors import ServiceError, UnavailableError
 from webforge_api.services.jobs import JobCancelled, JobError, enqueue
 from webforge_api.services.places import PlacesService
@@ -54,6 +55,7 @@ class JobContext:
     storage: Storage | None = None
     browser: BrowserClient | None = None
     ai: BriefModel | None = None
+    email: EmailProvider | None = None
 
 
 def _meta(job: Job) -> RequestMeta:
@@ -329,7 +331,37 @@ def handle_proposal(ctx: JobContext, job: Job) -> dict[str, Any]:
     return {"proposal_id": str(row.id), "version": row.proposal_version, "status": row.status.value}
 
 
+def handle_email_send(ctx: JobContext, job: Job) -> dict[str, Any]:
+    if controls.is_paused(ctx.db, ctx.settings, "email_pause"):
+        raise JobDeferred("email paused", seconds=300)  # queued mail stays unsent while paused
+    if ctx.email is None:
+        raise JobError("misconfigured", "No email provider configured.")
+    try:
+        msg = outreach.send(
+            ctx.db,
+            ctx.settings,
+            ctx.crypto,
+            ctx.email,
+            message_id=uuid.UUID(job.payload["message_id"]),
+            now=ctx.now,
+        )
+    except outreach.SendDeferred as exc:
+        raise JobDeferred(str(exc), seconds=exc.seconds) from exc
+    return {"status": msg.status.value, "error_code": msg.error_code}
+
+
+def handle_email_reconcile(ctx: JobContext, job: Job) -> dict[str, Any]:
+    if ctx.email is None:
+        raise JobError("misconfigured", "No email provider configured.")
+    msg = outreach.reconcile(
+        ctx.db, ctx.crypto, ctx.email, message_id=uuid.UUID(job.payload["message_id"]), now=ctx.now
+    )
+    return {"status": msg.status.value}
+
+
 HANDLERS = {
+    "email.send": handle_email_send,
+    "email.reconcile": handle_email_reconcile,
     "proposal.generate": handle_proposal,
     "design.validate": handle_validate,
     "design.render": handle_render,

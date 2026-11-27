@@ -69,6 +69,14 @@ in non-production environments only.
 | POST | `/proposals/{id}/previews` | OWNER, ADMIN | Create a preview link; the URL is returned once, only its hash is stored |
 | POST | `/previews/{id}/revoke` | OWNER, ADMIN | Revoke a preview link immediately |
 | POST | `/proposals/{id}/delete` | OWNER, ADMIN | Delete the PDF and revoke all previews (metadata kept) |
+| GET/POST | `/compliance/policies`, `/compliance/policies/{id}/activate` (OWNER) `/retire` | read: all; write: OWNER, ADMIN | Country policy registry; activation records qualified review |
+| GET/POST | `/prospects/{id}/contacts`, `/contacts/{id}/consent` | read: all; write: OWNER, ADMIN | Contacts from the official site only; consent evidence |
+| GET/POST | `/compliance/suppressions` | read: all; write: OWNER, ADMIN | Counts only; add global suppression (cannot be removed) |
+| GET/POST | `/outreach`, `/prospects/{id}/outreach`, `/outreach/{id}/reassess|approve (OWNER)|cancel` | OWNER, ADMIN (body visible to them) | One initial message, 17 checks, owner approval |
+| POST | `/outreach/{id}/simulate` | OWNER, non-production, mock only | Signed mock delivery/bounce/complaint/reply |
+| GET/POST | `/replies`, `/replies/{id}/handled` | read: all; handle: OWNER, ADMIN | Classified reply inbox |
+| POST | `/webhooks/email/{provider}/events`, `/inbound` | public, HMAC-signed | Provider events and replies (dedupe, 5-minute window) |
+| GET/POST | `/u/{token}` | public | Unsubscribe page / one-click (RFC 8058) |
 | GET | `/industries` | all roles | Industry vocabulary |
 | GET | `/health/live`, `/health/ready` | anyone | Liveness / dependency readiness |
 

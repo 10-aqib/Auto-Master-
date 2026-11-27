@@ -543,7 +543,7 @@ def _control_out(row: SystemControl, db: DbDep, settings: SettingsDep) -> Contro
         key=row.key,
         enabled=row.enabled,
         effective=controls.is_paused(db, settings, row.key),
-        description=controls.KNOWN_CONTROLS.get(row.key, ""),
+        description=controls.describe(row.key),
         reason=row.reason,
         updated_at=row.updated_at,
         updated_by_user_id=row.updated_by_user_id,

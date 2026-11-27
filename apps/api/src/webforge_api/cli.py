@@ -107,6 +107,9 @@ def main(argv: list[str] | None = None) -> int:
     refresh.add_argument("--limit", type=int, default=100)
     sub.add_parser("purge-transient", help="purge expired/disallowed transient values")
     sub.add_parser(
+        "seed-policy-drafts", help="create inactive DRAFT country policy research entries"
+    )
+    sub.add_parser(
         "purge-artifacts", help="expire preview links and delete proposal PDFs past retention"
     )
     args = parser.parse_args(argv)
@@ -141,6 +144,12 @@ def main(argv: list[str] | None = None) -> int:
                 store = TransientStore(db, Crypto.from_settings(settings), utcnow())
                 expired, disallowed = store.purge_expired(), store.purge_disallowed()
                 print(f"Purged {expired} expired and {disallowed} disallowed transient values.")
+            elif args.command == "seed-policy-drafts":
+                from webforge_api.services.compliance import seed_policy_drafts
+
+                print(
+                    f"Created {seed_policy_drafts(db, utcnow().date())} DRAFT policies (inactive)."
+                )
             elif args.command == "purge-artifacts":
                 from webforge_api.services.proposals import purge_expired as purge_artifacts
                 from webforge_api.storage import build_storage

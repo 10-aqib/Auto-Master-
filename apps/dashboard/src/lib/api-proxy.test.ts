@@ -5,12 +5,13 @@ import { buildForwardHeaders, copyResponseHeaders, isSafePath } from "./api-prox
 const config = { apiInternalUrl: "http://api:8000", trustForwardedFor: false };
 
 describe("isSafePath", () => {
-  it.each([[["auth", "me"]], [["users", "3f2c0b8e-1d2a-4b9b-9c1e-2a7d5e0f1a2b", "reset-mfa"]]])(
-    "allows %j",
-    (p) => {
-      expect(isSafePath(p)).toBe(true);
-    },
-  );
+  it.each([
+    [["auth", "me"]],
+    [["users", "3f2c0b8e-1d2a-4b9b-9c1e-2a7d5e0f1a2b", "reset-mfa"]],
+    [["controls", "country_pause:PK"]],
+  ])("allows %j", (p) => {
+    expect(isSafePath(p)).toBe(true);
+  });
   it.each([[[]], [[".."]], [["auth", ".."]], [["a/b"]], [["%2e%2e"]], [["x y"]], [Array(9).fill("a")]])(
     "rejects %j",
     (p) => {

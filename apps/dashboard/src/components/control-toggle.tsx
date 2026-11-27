@@ -32,7 +32,13 @@ export function ControlToggle({ control, role }: { control: Control; role: Role 
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-base font-semibold">
-          {control.key === "global_pause" ? "Global pause" : "Email pause"}
+          {control.key === "global_pause"
+            ? "Global pause"
+            : control.key === "email_pause"
+              ? "Email pause"
+              : control.key
+                  .replace("country_pause:", "Country pause: ")
+                  .replace("provider_pause:", "Provider pause: ")}
         </h2>
         <span className="text-sm font-semibold">{control.effective ? "PAUSED" : "RUNNING"}</span>
       </div>

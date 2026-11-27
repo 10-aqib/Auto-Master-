@@ -6,6 +6,7 @@ emergency override: when true, the system is paused regardless of the database.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 from sqlalchemy import select
@@ -23,6 +24,34 @@ KNOWN_CONTROLS = {
     "global_pause": "Stops all discovery, audits, generation and outbound activity.",
     "email_pause": "Stops all email sending (queued messages are held).",
 }
+# Scoped email pauses, e.g. "country_pause:PK" or "provider_pause:mock". Absent row = not paused
+# (global and email pauses still apply); enabled=true holds every send for that country/provider.
+SCOPED_PREFIXES = {
+    "country_pause": re.compile(r"^[A-Z]{2}$"),
+    "provider_pause": re.compile(r"^[a-z0-9_-]{2,32}$"),
+}
+
+
+def is_known(key: str) -> bool:
+    if key in KNOWN_CONTROLS:
+        return True
+    prefix, _, ref = key.partition(":")
+    pattern = SCOPED_PREFIXES.get(prefix)
+    return bool(pattern and pattern.match(ref))
+
+
+def describe(key: str) -> str:
+    prefix, _, ref = key.partition(":")
+    if prefix == "country_pause":
+        return f"Holds all email to recipients in {ref}."
+    if prefix == "provider_pause":
+        return f"Holds all email through the {ref} provider."
+    return KNOWN_CONTROLS.get(key, "")
+
+
+def is_scoped_paused(db: Session, key: str) -> bool:
+    row = db.get(SystemControl, key)
+    return bool(row and row.enabled)
 
 
 def is_paused(db: Session, settings: Settings, key: str = "global_pause") -> bool:
@@ -53,7 +82,7 @@ def set_control(
     now: datetime,
     meta: RequestMeta,
 ) -> SystemControl:
-    if key not in KNOWN_CONTROLS:
+    if not is_known(key):
         raise NotFoundError("not_found", "Unknown control.")
     row = db.get(SystemControl, key, with_for_update=True)
     if row is None:

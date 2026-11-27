@@ -110,6 +110,10 @@ class ComplianceAssessment(UUIDPrimaryKey, Base):
         UTCDateTime(), default=utcnow, server_default=func.now(), nullable=False
     )
     expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    # Phase 09: every eligibility check with its outcome, for the audit trail and the UI.
+    checks: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, default=list, server_default="[]", nullable=False
+    )
 
 
 class ConsentRecord(UUIDPrimaryKey, Base):
