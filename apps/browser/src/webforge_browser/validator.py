@@ -183,13 +183,19 @@ async def _check_page(
                 "framenavigated",
                 lambda f: navigations.append(f.url) if f == page.main_frame else None,
             )
+            # Every interaction is bounded: a form that submits navigates away, and the remaining steps must
+            # not hang or crash the run; the navigation itself is the evidence.
             fields = page.locator("form input, form textarea")
-            if await fields.count():
-                await fields.first.fill("Validation Test")
-                await fields.first.press("Enter", no_wait_after=True)
-            buttons = page.locator("form button")
-            for i in range(await buttons.count()):
-                await buttons.nth(i).click(no_wait_after=True)
+            with contextlib.suppress(Exception):
+                if await fields.count():
+                    await fields.first.fill("Validation Test", timeout=2000)
+                    await fields.first.press("Enter", no_wait_after=True, timeout=2000)
+            await page.wait_for_timeout(300)
+            if not navigations and page.url == before:
+                buttons = page.locator("form button")
+                for i in range(await buttons.count()):
+                    with contextlib.suppress(Exception):
+                        await buttons.nth(i).click(no_wait_after=True, timeout=2000)
             await page.wait_for_timeout(400)
             result["form"] = {
                 "navigated": bool(navigations) or page.url != before,

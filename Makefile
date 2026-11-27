@@ -10,6 +10,42 @@ NPM := npm --prefix $(DASH_DIR)
 TEST_DB_URL := postgresql://webforge:webforge-test-only@127.0.0.1:55432/webforge
 TEST_REDIS_URL := redis://127.0.0.1:56379/0
 TEST_COMPOSE := docker compose -f infrastructure/docker/compose.test.yml
+PROD_COMPOSE := docker compose -f docker-compose.yml -f infrastructure/production/docker-compose.prod.yml
+
+.PHONY: prod-config prod-build prod-up prod-ps backup restore-test alerts scan-secrets scan-deps scan-images
+
+prod-config: ## Validate the production Compose configuration (needs APP_DOMAIN/API_DOMAIN/PREVIEW_DOMAIN in .env)
+	$(PROD_COMPOSE) config --quiet && echo "production compose OK"
+
+prod-build: ## Build release images tagged RELEASE_TAG (default: git short SHA)
+	RELEASE_TAG=$${RELEASE_TAG:-$$(git rev-parse --short HEAD)} $(PROD_COMPOSE) build
+
+prod-up: ## Start/update production services for RELEASE_TAG (migrations run first)
+	RELEASE_TAG=$${RELEASE_TAG:-$$(git rev-parse --short HEAD)} $(PROD_COMPOSE) up -d --wait
+
+prod-ps: ## Production service status
+	$(PROD_COMPOSE) ps
+
+backup: ## Encrypted database + artifacts backup (set COMPOSE_FILES for production)
+	infrastructure/scripts/backup.sh
+
+restore-test: ## Restore the newest backup into a throwaway database and verify it
+	infrastructure/scripts/restore-test.sh
+
+alerts: ## Run the operational alert checks once
+	docker compose exec -T api python -m webforge_api.ops_alerts
+
+scan-secrets: ## Scan the Git history for secrets (gitleaks)
+	docker run --rm -v "$$PWD:/repo:ro" zricethezav/gitleaks:v8.30.1 git /repo --no-banner --redact
+
+scan-deps: ## Known-vulnerability scan of Python and npm dependencies
+	cd apps/api && uv export --frozen --no-hashes --no-emit-project > /tmp/webforge-api-reqs.txt && uvx --from pip-audit==2.10.0 pip-audit -r /tmp/webforge-api-reqs.txt --disable-pip --no-deps
+	cd apps/browser && uv export --frozen --no-hashes --no-emit-project > /tmp/webforge-browser-reqs.txt && uvx --from pip-audit==2.10.0 pip-audit -r /tmp/webforge-browser-reqs.txt --disable-pip --no-deps
+	cd apps/dashboard && npm audit --omit=dev --audit-level=high
+
+scan-images: ## Scan built images for HIGH/CRITICAL fixable vulnerabilities (trivy)
+	for i in webforge/api:dev webforge/browser:dev webforge/dashboard:dev; do \
+	  docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.69.1 image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --no-progress $$i; done
 
 .PHONY: help env install dev up down logs ps smoke isolation lint format typecheck test test-integration test-services-up test-services-down build compose-config migrate owner contracts e2e clean
 

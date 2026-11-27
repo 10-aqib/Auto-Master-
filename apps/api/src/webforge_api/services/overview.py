@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from webforge_api.config import Settings
 from webforge_api.models import (
     ApiUsage,
+    BackupRun,
     Campaign,
     ComplianceAssessment,
     DesignBrief,
@@ -251,6 +252,33 @@ def workers(client: redis.Redis | None) -> list[dict[str, Any]] | None:
         return None
 
 
+def backup_status(db: Session, now: datetime) -> dict[str, Any]:
+    def latest(kind: str, status: str | None = None) -> BackupRun | None:
+        q = select(BackupRun).where(BackupRun.kind == kind)
+        if status:
+            q = q.where(BackupRun.status == status)
+        return db.scalar(q.order_by(BackupRun.finished_at.desc()).limit(1))
+
+    backup, restore, last = latest("backup", "ok"), latest("restore_test", "ok"), latest("backup")
+    if backup is None:
+        return {
+            "status": "unknown",
+            "at": None,
+            "restore_test_at": None,
+            "detail": "No backup recorded yet. Run infrastructure/scripts/backup.sh.",
+        }
+    problems = []
+    if now - backup.finished_at > timedelta(hours=26):
+        problems.append("last successful backup is older than 26 h")
+    if restore is None or now - restore.finished_at > timedelta(days=8):
+        problems.append("no successful restore test in 8 days")
+    if last is not None and last.status == "failed":
+        problems.append("the most recent backup failed")
+    return {"status": "stale" if problems else "ok", "at": backup.finished_at.isoformat(),
+            "restore_test_at": restore.finished_at.isoformat() if restore else None,
+            "detail": "; ".join(problems) or f"{backup.bytes} bytes, {backup.location or 'local only'}"}  # fmt: skip
+
+
 def operations(
     db: Session, settings: Settings, now: datetime, client: redis.Redis | None
 ) -> dict[str, Any]:
@@ -287,5 +315,5 @@ def operations(
         "provider_errors_24h": provider_errors,
         "budgets": budgets(db, settings, now),
         "pauses": pauses,
-        "backups": {"status": "unknown", "at": None, "detail": "No backup has been recorded. Phase 11 adds the backup job and restore test."},
+        "backups": backup_status(db, now),
     }  # fmt: skip

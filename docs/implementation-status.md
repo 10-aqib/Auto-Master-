@@ -12,8 +12,41 @@
 | 07 | Validation | Complete | Disabled (rejected by config) |
 | 08 | Proposals | Complete (no email) | Disabled (rejected by config) |
 | 09 | Email/compliance | Complete (mock provider only) | Live sending rejected by config; no approved provider |
-| 10 | Dashboard/orchestration | **Complete** | Live sending rejected by config; email pause seeded ON |
-| 11 | Production | Not started | Only approved category |
+| 10 | Dashboard/orchestration | Complete | Live sending rejected by config; email pause seeded ON |
+| 11 | Production | **Release artifacts complete; VPS/DNS/provider steps NOT RUN** | NO-GO for live email (see release report) |
+
+## Phase 11 — Production artifacts, security review and release report (2026-11-27)
+
+### Delivered
+- Production Compose override + Caddyfile (TLS, HSTS, three hostnames, API host limited to webhooks/unsubscribe/
+  liveness, no other host ports), release tags for rollback, resource limits, log rotation, `ops` alert service.
+- Every base image pinned by digest (Dockerfiles, Compose, test Compose, CI). Runtime hardening (OS updates; pip,
+  npm, virtualenv and caches removed).
+- Encrypted backups (`backup.sh`), automated restore test (`restore-test.sh`), `backup_runs` (migration `0009`),
+  backup status in Operations; `python -m webforge_api.backup`.
+- Operational alerts (`python -m webforge_api.ops_alerts`): DB/Redis, workers, queue age, dead letters, budgets,
+  provider errors, failed sign-ins, webhook signature failures, pause changes, bounce/complaint rates, backups,
+  restore tests, disk, memory, TLS expiry; optional `ALERT_WEBHOOK_URL`. Webhook signature failures now recorded.
+- Security tooling: `.gitleaks.toml`, `make scan-secrets|scan-deps|scan-images`, CI `security` job.
+- Fixes found by this phase: pypdf 6.1.3 → 7.2.0 (97 advisories); validator form interaction could hang/crash when a
+  bad form navigates; `ops` service healthcheck.
+- Docs: `docs/operations/runbook.md`, `docs/release/RELEASE_REPORT.md`, ADR 0012.
+
+### Verification evidence (local run, 2026-11-27)
+
+| Check | Result |
+|---|---|
+| API tests (real PostgreSQL + Redis) | PASS — 500 passed (10 new: backup format sizes/tamper/truncation/wrong key/plaintext, key validation, alerts for backups/logins/failures, backup status, TLS skip) |
+| Browser sandbox tests | PASS — 22 passed (validator stable over 3 repeated runs after the fix) |
+| Lint / strict types (API 149 files, sandbox 6, dashboard) / dashboard 51 tests / build | PASS |
+| Docker stack (dev, hardened images) / smoke / isolation / E2E | PASS — 19/19, 8/8, 30/30, 0 error log lines |
+| gitleaks (history) / pip-audit (API, sandbox) / npm audit | 0 / 0 / 0 |
+| Trivy HIGH/CRITICAL fixable (api, browser, dashboard) | 0 / 0 / 0 (unfixed upstream listed in the release report) |
+| Backup → restore test → tampered backup | PASS → PASS (head 0009, 37 tables) → correctly FAILED + `backup_failed` alert |
+| Production-mode rehearsal (Caddy internal TLS) | config checks pass; routing/HSTS/redirect/port exposure verified; isolation 8/8; backup + restore; deploy r2 30 s; rollback r1 29 s with data and pauses intact |
+
+NOT RUN: VPS hardening, DNS, real certificates, off-site backup upload, real provider/API calls, supervised pilot.
+Recommendation: GO for a mail-free internal pilot once owner inputs exist; **NO-GO for live email**.
 
 ## Phase 10 — Owner dashboard and orchestration (2026-11-27)
 

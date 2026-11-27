@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Index, Integer, String, func
+from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -110,4 +110,23 @@ class SystemControl(Base):
     )
     updated_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT")
+    )
+
+
+class BackupRun(UUIDPrimaryKey, Base):
+    """One backup or restore-test run, recorded by the backup and restore-test scripts."""
+
+    __tablename__ = "backup_runs"
+
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(8), nullable=False)
+    finished_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, index=True)
+    bytes: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0", nullable=False)
+    sha256: Mapped[str | None] = mapped_column(String(64))
+    location: Mapped[str | None] = mapped_column(String(512))
+    detail: Mapped[str | None] = mapped_column(Text)
+
+    __table_args__ = (
+        CheckConstraint("kind IN ('backup','restore_test')", name="backup_kind"),
+        CheckConstraint("status IN ('ok','failed')", name="backup_status"),
     )

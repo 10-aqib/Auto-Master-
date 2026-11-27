@@ -16,7 +16,7 @@ advisories before upgrading and update this file in the same change.
 | Playwright (browser sandbox) | 1.63.0 (`mcr.microsoft.com/playwright/python:v1.63.0-noble`, Chromium build 1243) | `infrastructure/docker/browser.Dockerfile`, `apps/browser/pyproject.toml` |
 | Docker Engine / Compose (dev host used for verification) | 29.9.3 / v5.7.1 | not pinned |
 
-Image digests are not pinned yet; digest pinning is a Phase 11 production-hardening task.
+Image digests are pinned (Phase 11); see the release report.
 
 ## API (Python) — `apps/api/uv.lock`
 
@@ -30,7 +30,7 @@ Image digests are not pinned yet; digest pinning is a Phase 11 production-harden
 | structlog | 26.1.0 |
 | anthropic (Claude API SDK, Phase 05) | 2.14.0 |
 | jinja2 (concept renderer, Phase 06) | 3.1.6 |
-| pypdf (proposal PDF checks, Phase 08) | 6.1.3 |
+| pypdf (proposal PDF checks, Phase 08; upgraded in Phase 11 for security advisories) | 7.2.0 |
 | httpx2 (transitive via anthropic; also used by Starlette TestClient) | 2.16.2 |
 | psycopg[binary] | 3.3.9 |
 | redis | 8.2.0 |
@@ -87,3 +87,14 @@ ESLint 9 is used because `eslint-config-next` 16.4.6 is generated against it.
 Default model and prices checked 2026-11-26: `DEFAULT_MODEL` and `PRICES_MINOR_PER_MTOK` in
 `apps/api/src/webforge_api/services/ai.py` (input/output USD per million tokens). Unknown models are priced at
 the highest listed rate. Override the model with `ANTHROPIC_MODEL`; re-check prices before raising budgets.
+
+## Production and security tooling (Phase 11)
+
+| Tool / image | Version | Pinned in |
+|---|---|---|
+| Caddy | 2.11.9-alpine (`sha256:003a9780…36f0`) | `infrastructure/production/docker-compose.prod.yml`, CI |
+| gitleaks | 8.30.1 | Makefile, CI |
+| pip-audit | 2.10.0 | Makefile |
+| Trivy | 0.69.1 | Makefile |
+
+All base images are pinned by digest; see `docs/release/RELEASE_REPORT.md` §1 for the full list.

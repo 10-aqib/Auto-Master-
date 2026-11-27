@@ -36,6 +36,7 @@ def main() -> int:
         "REDIS_PASSWORD": redis_pw,
         "EMAIL_WEBHOOK_SECRET": secrets.token_urlsafe(32),
         "EMAIL_INBOUND_SIGNING_SECRET": secrets.token_urlsafe(32),
+        "BACKUP_ENCRYPTION_KEY": base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(),
     }
     lines = []
     for line in (ROOT / ".env.example").read_text().splitlines():

@@ -253,6 +253,8 @@ class Settings(BaseSettings):
     backup_bucket: str = ""
     backup_encryption_key_ref: str = ""
     alert_email_to: str = ""
+    # Optional HTTPS webhook (owner-controlled, e.g. ntfy or chat) that receives ops alerts as JSON.
+    alert_webhook_url: Annotated[str, Field(max_length=500, pattern=r"^$|^https://[^\s]+$")] = ""
 
     @field_validator("timezone")
     @classmethod

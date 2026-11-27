@@ -1,0 +1,126 @@
+# Production override. Use from the repository root on the VPS:
+#   docker compose -f docker-compose.yml -f infrastructure/production/docker-compose.prod.yml <command>
+# (`make prod-config`, `make prod-up` wrap this.) It adds Caddy (TLS, the only public entry point), removes every
+# host port publish except 80/443, tags images with RELEASE_TAG for rollback and adds resource limits.
+# Hostnames come from APP_DOMAIN / API_DOMAIN / PREVIEW_DOMAIN in .env — use only domains the owner controls.
+name: webforge
+
+x-prod: &prod
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+services:
+  caddy:
+    <<: *prod
+    image: caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN in .env}
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env}
+      PREVIEW_DOMAIN: ${PREVIEW_DOMAIN:?set PREVIEW_DOMAIN in .env}
+      CADDY_TLS: ${CADDY_TLS:-}
+    volumes:
+      - ./infrastructure/production/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [frontend]
+    mem_limit: 256m
+    pids_limit: 256
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      api: { condition: service_healthy }
+      dashboard: { condition: service_healthy }
+      preview: { condition: service_healthy }
+
+  postgres:
+    <<: *prod
+    mem_limit: 1g
+    shm_size: 256m
+
+  redis:
+    <<: *prod
+    mem_limit: 256m
+
+  migrate:
+    image: webforge/api:${RELEASE_TAG:-dev}
+
+  api:
+    <<: *prod
+    image: webforge/api:${RELEASE_TAG:-dev}
+    ports: !reset []
+    mem_limit: 768m
+    pids_limit: 256
+
+  preview:
+    <<: *prod
+    image: webforge/api:${RELEASE_TAG:-dev}
+    ports: !reset []
+    mem_limit: 256m
+    pids_limit: 128
+
+  worker:
+    <<: *prod
+    image: webforge/api:${RELEASE_TAG:-dev}
+    mem_limit: 768m
+    pids_limit: 256
+
+  worker-audit:
+    <<: *prod
+    image: webforge/api:${RELEASE_TAG:-dev}
+    mem_limit: 768m
+    pids_limit: 256
+
+  browser:
+    <<: *prod
+    image: webforge/browser:${RELEASE_TAG:-dev}
+
+  egress-proxy:
+    <<: *prod
+    image: webforge/api:${RELEASE_TAG:-dev}
+
+  dashboard:
+    <<: *prod
+    image: webforge/dashboard:${RELEASE_TAG:-dev}
+    ports: !reset []
+    mem_limit: 512m
+    pids_limit: 256
+
+  # Operational alerts every 5 minutes (stdout + optional ALERT_WEBHOOK_URL). See docs/operations/runbook.md.
+  ops:
+    <<: *prod
+    image: webforge/api:${RELEASE_TAG:-dev}
+    command: ["python", "-m", "webforge_api.ops_alerts", "--loop", "300"]
+    # Not an HTTP service: the image's API healthcheck does not apply. Alive = PID 1 is the alert loop.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0 if b'ops_alerts' in open('/proc/1/cmdline','rb').read() else 1)"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    env_file: [.env]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    volumes:
+      - artifacts:/data/artifacts:ro
+    networks: [backend, frontend]
+    mem_limit: 256m
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+volumes:
+  caddy_data:
+  caddy_config:

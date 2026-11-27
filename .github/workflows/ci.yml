@@ -21,7 +21,7 @@ jobs:
         working-directory: apps/api
     services:
       postgres:
-        image: postgres:18.7-alpine3.24
+        image: postgres:18.7-alpine3.24@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71
         env:
           POSTGRES_USER: webforge
           POSTGRES_PASSWORD: webforge-test-only
@@ -30,7 +30,7 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U webforge" --health-interval 2s --health-timeout 3s --health-retries 20
       redis:
-        image: redis:8.12.0-alpine3.23
+        image: redis:8.12.0-alpine3.23@sha256:5af80107c1eeecb484a2269b80a26d12bfa6521787da4663bd9f19f60a163483
         ports: ["56379:6379"]
         options: >-
           --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 3s --health-retries 20
@@ -117,3 +117,35 @@ jobs:
         run: docker compose logs --no-color
       - if: always()
         run: docker compose down -v
+
+  security:
+    name: Security scans (secrets, dependencies, production config)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: "0.11.32"
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "22.23.5"
+      - name: Secrets in Git history (gitleaks)
+        run: docker run --rm -v "$PWD:/repo:ro" zricethezav/gitleaks:v8.30.1 git /repo --no-banner --redact --config /repo/.gitleaks.toml
+      - name: Python and npm dependency vulnerabilities
+        run: |
+          (cd apps/dashboard && npm ci --no-audit --no-fund)
+          make scan-deps
+      - name: Production Compose renders with placeholder hostnames
+        run: |
+          cp .env.example .env
+          printf 'APP_DOMAIN=app.example.test\nAPI_DOMAIN=api.example.test\nPREVIEW_DOMAIN=preview.example.test\n' >> .env
+          make prod-config
+      - name: Caddyfile validates
+        run: >
+          docker run --rm -e APP_DOMAIN=app.example.test -e API_DOMAIN=api.example.test -e PREVIEW_DOMAIN=preview.example.test
+          -v "$PWD/infrastructure/production/Caddyfile:/etc/caddy/Caddyfile:ro"
+          caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
+          caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile

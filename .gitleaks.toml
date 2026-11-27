@@ -1,0 +1,11 @@
+# gitleaks configuration: the default rules plus a narrow allowlist for known fake test fixtures.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fake credentials used only by automated tests and the spec text"
+paths = [
+  '''(^|/)apps/api/tests/test_users\.py$''',
+  '''(^|/)tests/e2e/(auth|console)-flow\.mjs$''',
+  '''(^|/)docs/spec/20_IMPLEMENTATION_ROADMAP\.md$''',
+]

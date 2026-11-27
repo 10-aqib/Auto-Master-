@@ -9,7 +9,7 @@ x-hardening: &hardening
 services:
   postgres:
     <<: *hardening
-    image: postgres:18.7-alpine3.24
+    image: postgres:18.7-alpine3.24@sha256:0115267ab5a509022df9319c77be365cef335adb71556c75f60f5360ee247e71
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
@@ -26,7 +26,7 @@ services:
 
   redis:
     <<: *hardening
-    image: redis:8.12.0-alpine3.23
+    image: redis:8.12.0-alpine3.23@sha256:5af80107c1eeecb484a2269b80a26d12bfa6521787da4663bd9f19f60a163483
     environment:
       # redis-cli reads REDISCLI_AUTH; the server takes the same value via the shell so the
       # password does not appear in the Compose file or image.

@@ -507,18 +507,28 @@ def unsubscribe(db: Session, crypto: Crypto, *, token: str, now: datetime) -> bo
     return True
 
 
-def _verify(provider: EmailProvider, headers: dict[str, str], raw: bytes, secret: str) -> None:
+def _verify(
+    db: Session,
+    crypto: Crypto,
+    provider: EmailProvider,
+    headers: dict[str, str],
+    raw: bytes,
+    secret: str,
+) -> None:
     if not secret:
         raise UnavailableError("webhook_not_configured", "Webhook secret is not configured.")
     if not provider.verify_webhook(
         {k.lower(): v for k, v in headers.items()}, raw, secret, time.time()
     ):
+        activity.record(db, crypto, action="webhook.signature_failed", actor_user_id=None, system=True, outcome="failure",
+                        entity_type="webhook", entity_id=provider.name)  # fmt: skip
+        db.commit()  # counted by the ops alert check
         raise PermissionDeniedError("invalid_signature", "Invalid or expired webhook signature.")
 
 
 def process_events(db: Session, settings: Settings, crypto: Crypto, provider: EmailProvider, *, headers: dict[str, str], raw: bytes,
                    now: datetime) -> dict[str, int]:  # fmt: skip
-    _verify(provider, headers, raw, settings.email_webhook_secret.get_secret_value())
+    _verify(db, crypto, provider, headers, raw, settings.email_webhook_secret.get_secret_value())
     events = provider.parse_events(json.loads(raw))
     counts = {"processed": 0, "duplicates": 0, "ignored": 0}
     for e in events:
@@ -608,7 +618,9 @@ def classify(subject: str, text: str, auto_submitted: bool) -> tuple[str, bool]:
 
 def process_inbound(db: Session, settings: Settings, crypto: Crypto, provider: EmailProvider, *, headers: dict[str, str], raw: bytes,
                     now: datetime) -> Reply | None:  # fmt: skip
-    _verify(provider, headers, raw, settings.email_inbound_signing_secret.get_secret_value())
+    _verify(
+        db, crypto, provider, headers, raw, settings.email_inbound_signing_secret.get_secret_value()
+    )
     inbound = provider.parse_inbound(json.loads(raw))
     if db.scalar(
         select(Reply.id).where(

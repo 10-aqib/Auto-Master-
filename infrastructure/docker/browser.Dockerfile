@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 # Build context: apps/browser. Isolated browser sandbox: no secrets, internal network only.
-FROM ghcr.io/astral-sh/uv:0.11.32 AS uv
+FROM ghcr.io/astral-sh/uv:0.11.32@sha256:df4cae8f3a96d175e2e5f992e597550000edbe78fdc2594d5cd8de1a217f504c AS uv
 
-FROM mcr.microsoft.com/playwright/python:v1.63.0-noble
+FROM mcr.microsoft.com/playwright/python:v1.63.0-noble@sha256:72bd171a9ffc2b4b59532aaa6210e21014d07093120dc25528870c0b840da1f0
 COPY --from=uv /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never UV_PROJECT_ENVIRONMENT=/opt/venv \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
@@ -12,6 +12,11 @@ RUN uv sync --frozen --no-dev --no-install-project --python /usr/bin/python3
 COPY src ./src
 RUN uv sync --frozen --no-dev --no-editable --python /usr/bin/python3
 ENV PATH=/opt/venv/bin:$PATH
+# OS security updates; drop the base image's unused system Python tools (pip, virtualenv and their vendored
+# libraries). The sandbox runs only from /opt/venv, created without system site-packages.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* /usr/local/lib/python3.12/dist-packages/* /usr/local/bin/pip* /usr/local/bin/virtualenv \
+    && rm -rf /usr/local/bin/uv /root/.cache
 WORKDIR /app
 USER pwuser
 EXPOSE 9000

@@ -1,0 +1,53 @@
+# Public entry point. Only three hostnames are served; PostgreSQL, Redis, workers and the browser sandbox have no
+# route here and publish no host ports. Hostnames come from .env (APP_DOMAIN, API_DOMAIN, PREVIEW_DOMAIN).
+{
+	# ACME account email is optional; add `email you@your-domain` here once you have one.
+	admin 127.0.0.1:2019
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+(common) {
+	{$CADDY_TLS}
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+		-Via
+	}
+	log {
+		output stdout
+		format json
+	}
+}
+
+# Owner dashboard (it reaches the API over the internal network itself).
+{$APP_DOMAIN} {
+	import common
+	reverse_proxy dashboard:3000
+}
+
+# API hostname exposes only what the outside world needs: provider webhooks, one-click unsubscribe and liveness.
+# The staff API is reachable only through the dashboard.
+{$API_DOMAIN} {
+	import common
+	@public path /webhooks/email/* /u/* /health/live
+	handle @public {
+		request_body {
+			max_size 1MB
+		}
+		reverse_proxy api:8000
+	}
+	handle {
+		respond "Not found" 404
+	}
+}
+
+# Token-protected concept previews on their own origin. The preview service sets its own strict CSP.
+{$PREVIEW_DOMAIN} {
+	import common
+	reverse_proxy preview:4000
+}
