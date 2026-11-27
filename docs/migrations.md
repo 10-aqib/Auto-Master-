@@ -19,4 +19,4 @@ Review the generated file, keep it free of application imports, and run `make te
 `test_models_match_migrations` fails if models and migrations drift. Never edit an applied revision.
 Production upgrades: back up first (Phase 11 runbook), then apply; downgrades in production are not supported.
 
-- `0005` design renders · `0006` design validations · `0007` proposals/previews · `0008` outreach compliance · `0009` backup runs. All forward-only in production; each round-trip tested.
+- `0005` design renders · `0006` design validations · `0007` proposals/previews · `0008` outreach compliance · `0009` backup runs · `0010` data-only redaction of unverified Google-supplied website URLs (irreversible; downgrade is a no-op). All forward-only in production; each round-trip tested.

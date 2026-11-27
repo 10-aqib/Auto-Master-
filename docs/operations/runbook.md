@@ -76,6 +76,11 @@ targets wrap it). Logs: `json-file`, 20 MB × 5 per container.
 - Full restore onto a new server: set up per §2 with the same `BACKUP_ENCRYPTION_KEY`, start only `postgres`, create
   the database, `python -m webforge_api.backup decrypt < X.db.enc | docker compose exec -T postgres pg_restore -U … -d … --no-owner`,
   restore artifacts with `decrypt < X.artifacts.enc | tar -x` into the `artifacts` volume, then `make prod-up`.
+  Scripted: `COMPOSE_FILES=… make recover [BACKUP=/path/webforge-<stamp>]` does these steps, refuses a non-empty
+  database or artifacts volume, and leaves the global and email pauses ON. Then `make prod-up`, `make smoke`,
+  `make isolation` and `docker compose … exec -T api python -m webforge_api.provenance_audit`, and resume from
+  Settings only after review. Emergency stop from the host: `docker compose … exec -T api python -m
+  webforge_api.cli emergency-pause --reason "…"`.
 
 ## 6. Alerts
 

@@ -14,6 +14,20 @@
 | 09 | Email/compliance | Complete (mock provider only) | Live sending rejected by config; no approved provider |
 | 10 | Dashboard/orchestration | Complete | Live sending rejected by config; email pause seeded ON |
 | 11 | Production | **Release artifacts complete; VPS/DNS/provider steps NOT RUN** | NO-GO for live email (see release report) |
+| — | Internal pilot readiness | **Review complete; pilot entry conditions open** (`docs/pilot/`) | NO-GO; mock only; hard guards added |
+
+## Internal pilot readiness review (2026-11-27)
+
+Documents: `docs/pilot/INTERNAL_PILOT_READINESS.md`, `INTERNAL_PILOT_TEST_RESULTS.md`, `SECURITY_REVIEW.md`,
+`DATA_SOURCE_COMPLIANCE_REVIEW.md`, `DEPLOYMENT_BLOCKERS.md`.
+
+- Clean checkout: 531 API tests, 22 browser sandbox tests and 51 dashboard tests passed; lint, types and build passed.
+- Stack: E2E 30/30, smoke 19/19, isolation 8/8, live provenance audit 14/14, backup + restore test + full recovery drill passed.
+- Fixed: unverified Google `websiteUri` retention (migration 0010), explicit port 0 in safe_fetch, hard
+  send guards against non-mock providers.
+- Added: `python -m webforge_api.provenance_audit`, `cli emergency-pause`, `make recover`.
+- Not run: live email, paid APIs, VPS deployment, CI for this commit, external penetration test.
+- Not production-ready. Blockers: `docs/pilot/DEPLOYMENT_BLOCKERS.md`.
 
 ## Phase 11 — Production artifacts, security review and release report (2026-11-27)
 
