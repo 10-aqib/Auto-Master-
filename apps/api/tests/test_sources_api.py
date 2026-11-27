@@ -511,3 +511,25 @@ def test_domain_verification_history_kept(harness: Harness) -> None:
     with harness.db() as db:
         rows = db.scalars(select(DomainVerification)).all()
     assert len(rows) == 2 and all(r.status.value == "HOLD" for r in rows)
+
+
+def test_unverified_maps_website_is_not_retained(harness_factory: Any, site: FakeSite) -> None:
+    """Google's websiteUri is Maps Content: kept only when the business's own site confirms it."""
+    site.page(
+        "/", "<html><head><title>Completely Different Shop</title></head><body>x</body></html>"
+    )
+    h, _ = _google_harness(harness_factory, site)
+    csrf = _owner(h)
+    _enable(h, csrf, "google_places")
+    _enable(h, csrf, "official_website")
+    _search(h, csrf)
+    ident = h.client.get("/api/v1/places/identifiers").json()[0]
+    body = h.client.post(
+        f"/api/v1/places/identifiers/{ident['id']}/verify-website", headers=csrf
+    ).json()
+    assert body["verification"]["status"] in ("HOLD", "REJECTED") and body["prospect_id"] is None
+    assert body["verification"]["candidate_url"] == "(not retained: Maps content)"
+    assert body["verification"]["domain"] is None and body["verification"]["final_url"] is None
+    dump = _all_rows_text(h)
+    assert "bakery.example.test" not in dump  # neither the URL nor the domain Google supplied
+    assert GOOGLE_NAME not in dump and GOOGLE_ADDRESS not in dump

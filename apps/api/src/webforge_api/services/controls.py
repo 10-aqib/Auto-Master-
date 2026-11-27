@@ -104,3 +104,31 @@ def set_control(
     )
     db.commit()
     return row
+
+
+EMERGENCY_KEYS = ("global_pause", "email_pause")
+
+
+def emergency_pause(db: Session, crypto: Crypto, reason: str, now: datetime) -> list[str]:
+    """Turn the global and email pauses ON as the system (operator CLI, recovery). Never resumes."""
+    for key in EMERGENCY_KEYS:
+        row = db.get(SystemControl, key, with_for_update=True)
+        if row is None:
+            row = SystemControl(key=key, enabled=True)
+            db.add(row)
+        row.enabled = True
+        row.reason = reason[:500]
+        row.updated_at = now
+        row.updated_by_user_id = None
+        activity.record(
+            db,
+            crypto,
+            action="control.paused",
+            actor_user_id=None,
+            system=True,
+            entity_type="control",
+            entity_id=key,
+            metadata={"reason": reason[:200]},
+        )
+    db.commit()
+    return list(EMERGENCY_KEYS)

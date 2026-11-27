@@ -80,6 +80,10 @@ class VerifyResult:
     place_obsolete: bool = False
 
 
+MAPS_ORIGIN_SUFFIX = ":websiteUri (transient)"
+NOT_RETAINED = "(not retained: Maps content)"
+
+
 def _provider_error(exc: PlacesError) -> ServiceError:
     if exc.retryable:
         return UnavailableError(exc.code, str(exc))
@@ -230,17 +234,21 @@ class PlacesService:
         origin: str,
         identifier: ExternalPlaceIdentifier | None,
     ) -> DomainVerification:
+        # A website URL that came from Google (websiteUri) is Maps Content. It is kept only when the
+        # business's own site independently confirmed it (VERIFIED); else only the outcome is kept.
+        from_maps = origin.endswith(MAPS_ORIGIN_SUFFIX)
+        redact = from_maps and outcome.status is not DomainVerificationStatus.VERIFIED
         row = DomainVerification(
             place_identifier_id=identifier.id if identifier else None,
-            candidate_url=outcome.candidate_url[:2048] or "(none)",
-            final_url=outcome.final_url,
-            domain=outcome.domain,
+            candidate_url=NOT_RETAINED if redact else (outcome.candidate_url[:2048] or "(none)"),
+            final_url=None if redact else outcome.final_url,
+            domain=None if redact else outcome.domain,
             candidate_origin=origin,
             status=outcome.status,
             method=outcome.method,
             reason_codes=outcome.reason_codes,
             confidence=outcome.confidence,
-            evidence=outcome.evidence,
+            evidence={} if redact else outcome.evidence,
             checked_at=self.now,
             checked_by_user_id=actor.user.id if actor else None,
         )
@@ -345,7 +353,7 @@ class PlacesService:
 
         # websiteUri and displayName are Maps Content: used transiently for this check only.
         outcome = self.verifier.verify(place.website_uri, place.display_name)
-        origin = f"{identifier.provider}:websiteUri (transient)"
+        origin = f"{identifier.provider}{MAPS_ORIGIN_SUFFIX}"
         return self._finish_verification(actor, outcome, origin, identifier, meta)
 
     def verify_owner_url(

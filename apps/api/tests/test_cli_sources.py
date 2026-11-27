@@ -56,3 +56,26 @@ def test_refresh_cli_fails_closed_when_rate_limiter_down(
     assert "Usage limits cannot be checked" in capsys.readouterr().err
     with harness.db() as db:
         assert db.scalars(select(ExternalPlaceIdentifier.status)).one() is PlaceIdStatus.ACTIVE
+
+
+def test_emergency_pause_cli_pauses_and_records_activity(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from webforge_api.models import ActivityLog, SystemControl
+
+    with harness.db() as db:
+        for key in ("global_pause", "email_pause"):
+            row = db.get(SystemControl, key)
+            assert row is not None
+            row.enabled = False
+        db.commit()
+    _env(harness, monkeypatch)
+    assert main(["emergency-pause", "--reason", "recovery drill"]) == 0
+    assert "Paused: global_pause, email_pause" in capsys.readouterr().out
+    with harness.db() as db:
+        rows = {r.key: r for r in db.scalars(select(SystemControl))}
+        assert rows["global_pause"].enabled and rows["email_pause"].enabled
+        assert rows["email_pause"].reason == "recovery drill"
+        logged = db.scalars(select(ActivityLog).where(ActivityLog.action == "control.paused")).all()
+        assert {a.entity_id for a in logged} >= {"global_pause", "email_pause"}
+        assert all(a.actor_type == "system" for a in logged)

@@ -12,7 +12,7 @@ TEST_REDIS_URL := redis://127.0.0.1:56379/0
 TEST_COMPOSE := docker compose -f infrastructure/docker/compose.test.yml
 PROD_COMPOSE := docker compose -f docker-compose.yml -f infrastructure/production/docker-compose.prod.yml
 
-.PHONY: prod-config prod-build prod-up prod-ps backup restore-test alerts scan-secrets scan-deps scan-images
+.PHONY: prod-config prod-build prod-up prod-ps backup restore-test recover alerts scan-secrets scan-deps scan-images
 
 prod-config: ## Validate the production Compose configuration (needs APP_DOMAIN/API_DOMAIN/PREVIEW_DOMAIN in .env)
 	$(PROD_COMPOSE) config --quiet && echo "production compose OK"
@@ -31,6 +31,9 @@ backup: ## Encrypted database + artifacts backup (set COMPOSE_FILES for producti
 
 restore-test: ## Restore the newest backup into a throwaway database and verify it
 	infrastructure/scripts/restore-test.sh
+
+recover: ## EMERGENCY: rebuild an EMPTY stack from the newest (or given) encrypted backup; leaves pauses ON
+	infrastructure/scripts/recover.sh $(BACKUP)
 
 alerts: ## Run the operational alert checks once
 	docker compose exec -T api python -m webforge_api.ops_alerts

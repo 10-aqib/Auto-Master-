@@ -306,7 +306,9 @@ try {
         INSERT INTO prospect_sources (id, prospect_id, source_type, source_name, source_url, fact_field, safe_value,
                                       retrieved_at, confidence, verification_method, is_independent)
         SELECT gen_random_uuid(), id, 'OFFICIAL_WEBSITE', 'Official website', 'https://bakery.example.test/',
-               'business_name', 'E2E Fixture Bakery', now(), 0.9, 'e2e_fixture', true FROM p),
+               f.field, f.value, now(), 0.9, 'e2e_fixture', true FROM p,
+               (VALUES ('business_name', 'E2E Fixture Bakery'), ('website_url', 'https://bakery.example.test/'),
+                       ('verified_domain', 'bakery.example.test'), ('industry', 'bakery')) AS f(field, value)),
       a AS (
         INSERT INTO website_audits (id, prospect_id, url, status, audit_version, started_at, finished_at, scores)
         SELECT gen_random_uuid(), id, 'https://bakery.example.test/', 'SUCCEEDED', 'audit-1', now(), now(),

@@ -183,7 +183,7 @@ def _validate_url(url: str, policy: FetchPolicy) -> str:
     except InvalidUrlError as exc:
         raise FetchBlockedError("invalid_url", str(exc)) from exc
     parts = urlsplit(normalized)
-    port = parts.port or (443 if parts.scheme == "https" else 80)
+    port = parts.port if parts.port is not None else (443 if parts.scheme == "https" else 80)
     if port not in policy.allowed_ports:
         raise FetchBlockedError("blocked_port", f"Port {port} is not allowed.")
     host = parts.hostname or ""

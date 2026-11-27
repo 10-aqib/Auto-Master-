@@ -310,6 +310,17 @@ def send(
     message_id: uuid.UUID,
     now: datetime,
 ) -> OutreachMessage:
+    # Hard guards, independent of compliance checks and pause switches, checked before anything changes:
+    # a real provider never sends while live sending is off (EMAIL_SENDING_ENABLED=true is rejected at
+    # startup), and the offline test provider never "sends" in production.
+    if not provider.is_mock and not settings.email_sending_enabled:
+        raise JobError(
+            "live_email_disabled", "Live email sending is disabled; no provider request was made."
+        )
+    if provider.is_mock and settings.is_production:
+        raise JobError(
+            "mock_provider_in_production", "The test email provider cannot send in production."
+        )
     msg = db.get(OutreachMessage, message_id, with_for_update=True)
     if msg is None:
         raise JobError("not_found", "Message not found.")

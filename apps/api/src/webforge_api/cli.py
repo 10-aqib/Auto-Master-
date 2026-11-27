@@ -112,6 +112,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser(
         "purge-artifacts", help="expire preview links and delete proposal PDFs past retention"
     )
+    pause = sub.add_parser(
+        "emergency-pause", help="turn the global and email pauses ON (never resumes anything)"
+    )
+    pause.add_argument("--reason", required=True)
     args = parser.parse_args(argv)
 
     if args.command == "openapi":
@@ -158,6 +162,11 @@ def main(argv: list[str] | None = None) -> int:
                     db, Crypto.from_settings(settings), build_storage(settings), now=utcnow()
                 )
                 print(f"Artifacts: {counts}")
+            elif args.command == "emergency-pause":
+                from webforge_api.services.controls import emergency_pause
+
+                keys = emergency_pause(db, Crypto.from_settings(settings), args.reason, utcnow())
+                print(f"Paused: {', '.join(keys)}. Resume only from the dashboard after review.")
             elif args.command == "purge-expired":
                 count = purge_expired_sessions(db, now=utcnow(), keep_days=args.keep_days)
                 print(f"Purged {count} sessions.")
