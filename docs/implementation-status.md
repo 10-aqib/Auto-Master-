@@ -29,6 +29,14 @@ Documents: `docs/pilot/INTERNAL_PILOT_READINESS.md`, `INTERNAL_PILOT_TEST_RESULT
 - Not run: live email, paid APIs, VPS deployment, CI for this commit, external penetration test.
 - Not production-ready. Blockers: `docs/pilot/DEPLOYMENT_BLOCKERS.md`.
 
+## VPS preparation (2026-11-28)
+
+- Tested scripts in `infrastructure/vps/` (inspect, harden, Docker, prepare) plus
+  `infrastructure/production/docker-compose.small-vm.yml`. Report: `docs/operations/vps-setup.md`.
+- Verified on Ubuntu 24.04 with systemd: lockout-safe SSH hardening, UFW, Fail2ban bans, Docker install.
+  E2E 30/30 under the small-VM memory limits (no OOM).
+- NOT run on the real VM (no SSH access from the cloud session). No deployment.
+
 ## Phase 11 — Production artifacts, security review and release report (2026-11-27)
 
 ### Delivered

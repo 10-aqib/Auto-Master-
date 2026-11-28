@@ -42,6 +42,12 @@ Stages: **P** = internal real-data pilot (owner only, email OFF) · **E** = any 
 | C8 | Paid API keys (Google Places, Anthropic) and budgets are unset, so every budget is 0 (blocked) | Enabling those sources | Set small daily budgets; check that the 80 % warning reaches the alert channel |
 | C9 | External uptime monitoring not configured | X | Owner's choice of provider |
 
+## C2. Compute Engine VM (added 2026-11-28)
+
+VM-specific findings and the tested setup scripts are in `docs/operations/vps-setup.md`. In short: Phase 1
+inspection of the real VM is still outstanding (no SSH access from the cloud session); e2-small with a 30 GB
+disk, 2 GB swap and `docker-compose.small-vm.yml` is the minimum viable shape; e2-micro is not viable.
+
 ## D. Already closed in this review
 
 - Unverified Google website URLs retained → fixed and redacted (migration 0010).
